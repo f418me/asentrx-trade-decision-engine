@@ -1,0 +1,4 @@
+venv
+.env
+/tests/e2e/.env.test
+.idea

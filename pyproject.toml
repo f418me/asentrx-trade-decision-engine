@@ -1,0 +1,42 @@
+[tool.poetry]
+name = "asentrx-trade-decision-engine"
+version = "0.1.0"
+description = ""
+authors = ["Felix Frei <felix.frei@gmx.ch>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115.12"
+uvicorn = "^0.34.3"
+pydantic-ai = "^0.2.15"
+pydantic = "^2.11.5"
+python-dotenv = "^1.1.0"
+requests = "^2.32.3"
+twilio = "^9.6.2"
+logfire = "^3.18.0"
+sentry-sdk = "^2.29.1"
+beautifulsoup4 = "^4.13.4"
+truthbrush = {git = "https://github.com/stanfordio/truthbrush.git", rev = "25f75b3187773420ca0ee28a0a1b8d24c4955326"}
+bitfinex-api-py = {git = "https://github.com/f418me/bitfinex-api-py.git"}
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.0"
+pytest-mock = "^3.14.1"
+requests-mock = "^1.12.1"
+pytest-asyncio = "^1.0.0"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]
+markers = [
+    "e2e: marks tests as end-to-end",
+]
+
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

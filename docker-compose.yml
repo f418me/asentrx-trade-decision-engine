@@ -1,0 +1,42 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  # Der Service für die asentrx-trade-decision-engine FastAPI-Anwendung
+  asentrx_decision_engine:
+    # Baut das Docker-Image aus dem aktuellen Verzeichnis mit dem angegebenen Dockerfile
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Name des Containers für einfache Identifizierung
+    container_name: asentrx_decision_engine_container
+
+    # Definiert, wann der Container neu gestartet werden soll.
+    # 'unless-stopped' startet den Container immer neu, ausser er wurde manuell gestoppt.
+    restart: unless-stopped
+
+    # Lädt Umgebungsvariablen aus einer .env-Datei.
+    # Erstelle eine .env-Datei basierend auf .env.example mit deinen Produktionswerten.
+    env_file:
+      - .env
+
+    # Mapped den Port 8000 im Container auf den Port 8000 auf dem Host-System.
+    # Du kannst auf die API über http://localhost:8000 zugreifen.
+    ports:
+      - "8000:8000"
+
+    # Volumes für persistente Daten.
+    # Hier mappen wir ein lokales Verzeichnis 'logs' in das Verzeichnis '/app/logs' im Container.
+    # Dies ist nützlich, falls du FileHandler im Logging konfigurierst.
+    volumes:
+      - ./logs:/app/logs
+
+    # Definiert, dass dieser Service von anderen Services abhängen kann.
+    # Nützlich, wenn du z.B. eine Datenbank hinzufügen würdest.
+    # depends_on:
+    #   - some_database_service
+
+# Optional: Definition von Volumes für eine bessere Verwaltung durch Docker
+volumes:
+  logs:
