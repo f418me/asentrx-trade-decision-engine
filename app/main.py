@@ -1,7 +1,19 @@
+# --- START OF FILE main.py ---
+
 import logging
 import uvicorn
+# Fügen Sie os und sys am Anfang hinzu, um sie globaler zu nutzen
+import os
+import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
+
+# --- ÄNDERUNG 1: Pfade oben definieren ---
+# Definieren Sie den Projekt-Stammordner und wichtige Dateipfade hier.
+# Dies macht sie im gesamten Skript verfügbar und robust gegenüber dem CWD.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+EXPECTATIONS_FILE_PATH = os.path.join(PROJECT_ROOT, "app", "expectations.json")
+
 
 from app.ai.agents.fed_decision_agent import FEDDecisionAnalyzer
 from app.models import WebMonitorPayload, FailedFEDAnalysis
@@ -47,9 +59,11 @@ async def lifespan(app: FastAPI):
         app.state.trade_decision_manager = None
 
     try:
-        app.state.fed_decision_analyzer = FEDDecisionAnalyzer(expectations_path="app/expectations.json")
-        logger.info("FEDDecisionAnalyzer initialized.")
+        # --- ÄNDERUNG 2: Den neuen, absoluten Pfad verwenden ---
+        app.state.fed_decision_analyzer = FEDDecisionAnalyzer(expectations_path=EXPECTATIONS_FILE_PATH)
+        logger.info(f"FEDDecisionAnalyzer initialized using expectations from: {EXPECTATIONS_FILE_PATH}")
     except Exception as e:
+        # Die Fehlermeldung wird jetzt den vollen, korrekten Pfad anzeigen, was das Debugging erleichtert.
         logger.critical(f"Fatal error initializing FEDDecisionAnalyzer: {e}", exc_info=True)
         app.state.fed_decision_analyzer = None
 
@@ -65,6 +79,7 @@ app = FastAPI(
 )
 
 
+# ... (der Rest Ihres Codes für die Endpunkte bleibt unverändert) ...
 @app.get("/", tags=["Health Check"])
 async def read_root():
     return {"message": "aSentrX Trade Decision Engine is running!"}
@@ -93,7 +108,6 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
 
     logger.info(f"Handing off content from UUID {payload.uuid} to FEDDecisionAnalyzer.")
 
-    # Use await because analyze_content is now an async function
     fed_analysis_result = await fed_decision_analyzer.analyze_content(
         content=payload.content,
         content_id_for_logging=payload.content_id or payload.uuid
@@ -116,5 +130,9 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
 
 
 if __name__ == "__main__":
+
+    if PROJECT_ROOT not in sys.path:
+        sys.path.insert(0, PROJECT_ROOT)
+
     logger.info("Starting server directly from main.py")
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

@@ -1,0 +1,66 @@
+# fly.toml app configuration file generated for asentrx-trade-decision-engine on 2025-06-08T18:14:26+02:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'asentrx-trade-decision-engine'
+primary_region = 'lax'
+
+[build]
+
+[env]
+  CONFIDENCE_THRESHOLD_BITCOIN_HIGH = '0.93'
+  CONFIDENCE_THRESHOLD_BITCOIN_MED = '0.88'
+  CONFIDENCE_THRESHOLD_FED_HIGH = '0.96'
+  CONFIDENCE_THRESHOLD_FED_MED = '0.92'
+  CONFIDENCE_THRESHOLD_HIGH = '0.95'
+  CONFIDENCE_THRESHOLD_MED = '0.9'
+  LEVERAGE_BITCOIN_BUY_HIGH_CONF = '15'
+  LEVERAGE_BITCOIN_BUY_MED_CONF = '7'
+  LEVERAGE_BITCOIN_SHORT_HIGH_CONF = '15'
+  LEVERAGE_BITCOIN_SHORT_MED_CONF = '7'
+  LEVERAGE_BUY_HIGH_CONF = '10'
+  LEVERAGE_BUY_MED_CONF = '5'
+  LEVERAGE_FED_BUY_HIGH_CONF = '10'
+  LEVERAGE_FED_BUY_MED_CONF = '5'
+  LEVERAGE_FED_SHORT_HIGH_CONF = '10'
+  LEVERAGE_FED_SHORT_MED_CONF = '5'
+  LEVERAGE_SHORT_HIGH_CONF = '10'
+  LEVERAGE_SHORT_MED_CONF = '5'
+  LIMIT_OFFSET_BUY = '0.005'
+  LIMIT_OFFSET_SHORT = '0.005'
+  LOGFIRE_ENVIRONMENT = 'preprod'
+  LOGFIRE_SERVICE_NAME = 'asentrx-decision-engine'
+  LOG_LEVEL_CONSOLE = 'DEBUG'
+  MODEL = 'google-gla:gemini-2.5-flash-preview-05-20'
+  ORDER_AMOUNT_BITCOIN_BUY_HIGH_CONF = '0.0015'
+  ORDER_AMOUNT_BITCOIN_BUY_MED_CONF = '0.00075'
+  ORDER_AMOUNT_BITCOIN_SHORT_HIGH_CONF = '-0.0015'
+  ORDER_AMOUNT_BITCOIN_SHORT_MED_CONF = '-0.00075'
+  ORDER_AMOUNT_BUY_HIGH_CONF = '0.001'
+  ORDER_AMOUNT_BUY_MED_CONF = '0.0005'
+  ORDER_AMOUNT_FED_BUY_HIGH_CONF = '0.002'
+  ORDER_AMOUNT_FED_BUY_MED_CONF = '0.001'
+  ORDER_AMOUNT_FED_SHORT_HIGH_CONF = '-0.002'
+  ORDER_AMOUNT_FED_SHORT_MED_CONF = '-0.001'
+  ORDER_AMOUNT_SHORT_HIGH_CONF = '-0.001'
+  ORDER_AMOUNT_SHORT_MED_CONF = '-0.0005'
+  PROD_EXECUTION = 'False'
+  SMS_NOTIFICATIONS_ENABLED = 'True'
+  TRADE_SYMBOL = 'tBTCF0:USTF0'
+  TWILIO_FROM_NUMBER = '+13204336759'
+  TWILIO_TO_NUMBER = '+41796754690'
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1

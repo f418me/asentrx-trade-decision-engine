@@ -2,7 +2,7 @@
 FROM python:3.12-slim AS builder
 
 # Setze Umgebungsvariablen für Poetry
-ENV POETRY_VERSION=1.8.2 # Eine neuere, stabile Version von Poetry
+ENV POETRY_VERSION=1.8.2
 ENV POETRY_HOME="/opt/poetry"
 ENV POETRY_CACHE_DIR="/tmp/poetry_cache"
 # Wir erstellen ein virtuelles Environment im Projektverzeichnis, um es einfach kopieren zu können
@@ -33,7 +33,7 @@ FROM python:3.12-slim AS final
 # Setze Umgebungsvariablen für die Produktion
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
-ENV PATH="/app/.venv/bin:${PATH}" # Füge das venv zum PATH hinzu
+ENV PATH="/app/.venv/bin:${PATH}"
 
 WORKDIR /app
 
@@ -46,9 +46,6 @@ COPY --from=builder /app/.venv ./.venv
 # Kopiere den gesamten Anwendungscode
 # Da der Code in einem 'app'-Verzeichnis liegt, kopieren wir dieses Verzeichnis
 COPY ./app ./app
-
-# Kopiere andere wichtige Dateien
-COPY ./expectations.json ./app/expectations.json # Stelle sicher, dass die Erwartungsdatei am richtigen Ort ist
 
 # Gib dem neuen Benutzer die Eigentümerschaft über das App-Verzeichnis
 RUN chown -R appuser:appuser /app
