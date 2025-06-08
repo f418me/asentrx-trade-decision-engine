@@ -22,7 +22,7 @@ def mock_sms_notifier():
 
 @pytest.fixture
 def decision_manager(mock_trader, mock_sms_notifier):
-    """Initializes the TradeDecisionManager with mocks."""
+    """Initializes the TradeDecisionManager with mocks for each test."""
     return TradeDecisionManager(trader=mock_trader, sms_notifier=mock_sms_notifier)
 
 
@@ -38,17 +38,16 @@ def decision_manager(mock_trader, mock_sms_notifier):
      "Medium-Confidence DOWN"),
 ])
 def test_execute_trade_for_fed_decision_triggers_correct_trades(
-        decision_manager, mock_trader, mock_sms_notifier, mocker,  # Added mocker fixture
+        decision_manager, mock_trader, mock_sms_notifier, mocker,
         impact, confidence, expected_amount, expected_leverage, description
 ):
     """
     Tests if correct trades are triggered for FED decisions based on confidence and direction.
     """
     # 1. Arrange
-    # Temporarily set PROD_EXECUTION to True for this test to run the logic.
+    # Temporarily set PROD_EXECUTION to True for this test to run the trade logic.
     decision_manager.PROD_EXECUTION = True
-
-    # FIX: Temporarily patch AppConfig to enable SMS notifications for this test.
+    # Temporarily patch AppConfig to enable SMS notifications for this test.
     mocker.patch.object(AppConfig, 'SMS_NOTIFICATIONS_ENABLED', True)
 
     analysis_result = FEDDecisionImpact(
@@ -66,14 +65,14 @@ def test_execute_trade_for_fed_decision_triggers_correct_trades(
     # Was the trader's execute_order method called exactly once?
     mock_trader.execute_order.assert_called_once()
 
-    # Extract the arguments with which execute_order was called
-    call_args = mock_trader.execute_order.call_args.kwargs
+    # Extract the keyword arguments with which execute_order was called
+    call_kwargs = mock_trader.execute_order.call_args.kwargs
 
     # Verify the arguments are correct
-    assert call_args['symbol'] == AppConfig.TRADE_SYMBOL
-    assert call_args['amount'] == expected_amount
-    assert call_args['leverage'] == expected_leverage
-    assert call_args['limit_offset_percentage'] is not None
+    assert call_kwargs['symbol'] == AppConfig.TRADE_SYMBOL
+    assert call_kwargs['amount'] == expected_amount
+    assert call_kwargs['leverage'] == expected_leverage
+    assert call_kwargs['limit_offset_percentage'] is not None
 
     # Was an SMS sent?
     mock_sms_notifier.send_sms.assert_called_once()

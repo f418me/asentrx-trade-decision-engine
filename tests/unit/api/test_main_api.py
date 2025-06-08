@@ -1,15 +1,12 @@
 # tests/unit/api/test_main_api.py
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.models import FEDDecisionImpact, FailedFEDAnalysis
 
-
-# No need to create the client here globally anymore.
-# We will create it inside each test function to manage the lifespan context.
 
 def test_web_monitor_notification_success_flow(mocker):
     """
@@ -25,16 +22,19 @@ def test_web_monitor_notification_success_flow(mocker):
         actual_fed_decision_summary="Mocked summary"
     )
 
-    # Mock the classes that are instantiated within the lifespan manager
-    # We patch them before the lifespan manager is entered.
-    mocker.patch('app.main.FEDDecisionAnalyzer',
-                 return_value=MagicMock(analyze_content=MagicMock(return_value=successful_analysis)))
+    # Mock the FEDDecisionAnalyzer's async method.
+    # We create an AsyncMock that, when awaited, returns our desired result.
+    mock_analyzer_instance = MagicMock()
+    mock_analyzer_instance.analyze_content = AsyncMock(return_value=successful_analysis)
+
+    # Patch the class constructor to return our mock instance.
+    mocker.patch('app.main.FEDDecisionAnalyzer', return_value=mock_analyzer_instance)
 
     # Mock the TradeDecisionManager to check if it's called
     mock_trade_manager_instance = MagicMock()
     mocker.patch('app.main.TradeDecisionManager', return_value=mock_trade_manager_instance)
 
-    # We also mock the other initializers to prevent side effects (like real Bitfinex calls)
+    # Mock other initializers to prevent side effects
     mocker.patch('app.main.SmsNotifier')
     mocker.patch('app.main.Trader')
     mocker.patch('app.main.BitfinexTrader')
@@ -49,7 +49,6 @@ def test_web_monitor_notification_success_flow(mocker):
     }
 
     # 2. Act
-    # Use the TestClient as a context manager to correctly handle the lifespan events.
     with TestClient(app) as client:
         response = client.post("/notify/web-monitor", json=payload)
 
@@ -57,11 +56,11 @@ def test_web_monitor_notification_success_flow(mocker):
     assert response.status_code == 200
     assert response.json() == {"status": "success", "message": "Notification processed and trade logic triggered."}
 
-    # The TradeDecisionManager instance was created by the mocked constructor.
-    # Now we can check if its method was called.
+    # Verify that the mocked methods were called as expected
+    mock_analyzer_instance.analyze_content.assert_awaited_once()
     mock_trade_manager_instance.execute_trade_from_analysis.assert_called_once()
 
-    # Verify the arguments passed to the method
+    # Verify arguments passed to the trade manager
     call_args, call_kwargs = mock_trade_manager_instance.execute_trade_from_analysis.call_args
     assert call_kwargs['analysis_result'] == successful_analysis
     assert call_kwargs['content_id_for_log'] == "fomc-minutes"
@@ -72,11 +71,12 @@ def test_web_monitor_notification_analyzer_fails(mocker):
     # 1. Arrange
     failed_analysis = FailedFEDAnalysis(error_message="AI failed spectacularly")
 
-    # Patch the FEDDecisionAnalyzer to return the failure object
-    mocker.patch('app.main.FEDDecisionAnalyzer',
-                 return_value=MagicMock(analyze_content=MagicMock(return_value=failed_analysis)))
+    mock_analyzer_instance = MagicMock()
+    mock_analyzer_instance.analyze_content = AsyncMock(return_value=failed_analysis)
 
-    # We don't need to mock the trade manager here as it shouldn't be reached
+    mocker.patch('app.main.FEDDecisionAnalyzer', return_value=mock_analyzer_instance)
+
+    # Mock other classes as they are not relevant for this failure path
     mocker.patch('app.main.TradeDecisionManager')
     mocker.patch('app.main.SmsNotifier')
     mocker.patch('app.main.Trader')
