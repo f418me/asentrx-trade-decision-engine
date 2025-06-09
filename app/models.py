@@ -106,3 +106,13 @@ class FEDDecisionImpact(BaseModel):
 class FailedFEDAnalysis(BaseModel):
     """Indicates that the FED decision analysis failed."""
     error_message: str
+
+class IrrelevantFEDContent(BaseModel):
+    """
+    Indicates that the provided content was analyzed but is not relevant
+    to a FED interest rate decision, so no action can be taken.
+    This is a successful analysis outcome, not a failure.
+    """
+    reason: str = Field(
+        description="Explanation why the content is not relevant to a FED decision."
+    )

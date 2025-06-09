@@ -1,22 +1,17 @@
-# --- START OF FILE main.py ---
-
 import logging
 import uvicorn
-# Fügen Sie os und sys am Anfang hinzu, um sie globaler zu nutzen
 import os
 import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 
-# --- ÄNDERUNG 1: Pfade oben definieren ---
-# Definieren Sie den Projekt-Stammordner und wichtige Dateipfade hier.
-# Dies macht sie im gesamten Skript verfügbar und robust gegenüber dem CWD.
+
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPECTATIONS_FILE_PATH = os.path.join(PROJECT_ROOT, "app", "expectations.json")
 
 
 from app.ai.agents.fed_decision_agent import FEDDecisionAnalyzer
-from app.models import WebMonitorPayload, FailedFEDAnalysis
+from app.models import WebMonitorPayload, FailedFEDAnalysis, IrrelevantFEDContent
 from app.utils.logger_config import configure_logging, APP_LOGGER_NAME
 from app.utils.sms_notifier import SmsNotifier
 from app.trading.bitfinex_trader import BitfinexTrader
@@ -59,11 +54,9 @@ async def lifespan(app: FastAPI):
         app.state.trade_decision_manager = None
 
     try:
-        # --- ÄNDERUNG 2: Den neuen, absoluten Pfad verwenden ---
         app.state.fed_decision_analyzer = FEDDecisionAnalyzer(expectations_path=EXPECTATIONS_FILE_PATH)
         logger.info(f"FEDDecisionAnalyzer initialized using expectations from: {EXPECTATIONS_FILE_PATH}")
     except Exception as e:
-        # Die Fehlermeldung wird jetzt den vollen, korrekten Pfad anzeigen, was das Debugging erleichtert.
         logger.critical(f"Fatal error initializing FEDDecisionAnalyzer: {e}", exc_info=True)
         app.state.fed_decision_analyzer = None
 
@@ -79,7 +72,6 @@ app = FastAPI(
 )
 
 
-# ... (der Rest Ihres Codes für die Endpunkte bleibt unverändert) ...
 @app.get("/", tags=["Health Check"])
 async def read_root():
     return {"message": "aSentrX Trade Decision Engine is running!"}
@@ -101,11 +93,6 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
         logger.error(error_msg)
         raise HTTPException(status_code=503, detail=error_msg)
 
-    if not trade_decision_manager:
-        error_msg = "Trade Decision Manager is not available. Cannot process for trading."
-        logger.error(error_msg)
-        raise HTTPException(status_code=503, detail=error_msg)
-
     logger.info(f"Handing off content from UUID {payload.uuid} to FEDDecisionAnalyzer.")
 
     fed_analysis_result = await fed_decision_analyzer.analyze_content(
@@ -113,12 +100,32 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
         content_id_for_logging=payload.content_id or payload.uuid
     )
 
+    # --- KOMPLETT NEUE LOGIK ZUR BEHANDLUNG DER ERGEBNISSE ---
+
+    # Fall 1: Die Analyse ist fehlgeschlagen (echter Fehler).
     if isinstance(fed_analysis_result, FailedFEDAnalysis):
         logger.error(f"FED decision analysis failed for UUID {payload.uuid}: {fed_analysis_result.error_message}")
         raise HTTPException(status_code=500, detail=f"FED analysis failed: {fed_analysis_result.error_message}")
 
-    logger.info(f"Handing off analysis result for UUID {payload.uuid} to TradeDecisionManager.")
+    # Fall 2: Der Inhalt ist nicht relevant. Dies ist kein Fehler, sondern ein gültiger "Keine Aktion"-Zustand.
+    if isinstance(fed_analysis_result, IrrelevantFEDContent):
+        logger.info(
+            f"Content from UUID {payload.uuid} was analyzed as irrelevant. No trade action will be taken. "
+            f"Reason: {fed_analysis_result.reason}"
+        )
+        return {"status": "success_no_action", "message": "Content analyzed as irrelevant, no trade action taken."}
+
+    # Fall 3: Der Inhalt ist relevant und wurde erfolgreich analysiert (FEDDecisionImpact).
+    # Erst jetzt prüfen wir, ob der Trade Manager für die Ausführung bereit ist.
+    if not trade_decision_manager:
+        error_msg = "Trade Decision Manager is not available. Cannot process for trading."
+        logger.error(error_msg)
+        # Wir haben eine gültige Analyse, können aber nicht handeln -> 503 Service Unavailable
+        raise HTTPException(status_code=503, detail=error_msg)
+
+    logger.info(f"Handing off actionable analysis result for UUID {payload.uuid} to TradeDecisionManager.")
     try:
+        # An dieser Stelle ist `fed_analysis_result` garantiert ein `FEDDecisionImpact`-Objekt.
         trade_decision_manager.execute_trade_from_analysis(
             analysis_result=fed_analysis_result,
             content_id_for_log=payload.content_id or payload.uuid
@@ -130,7 +137,6 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
 
 
 if __name__ == "__main__":
-
     if PROJECT_ROOT not in sys.path:
         sys.path.insert(0, PROJECT_ROOT)
 
