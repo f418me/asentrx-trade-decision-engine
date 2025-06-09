@@ -1,0 +1,9 @@
+{
+  "uuid": "curl-test-hawkish-002",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240320a.htm",
+  "username": "FED",
+  "content-id": "monetary20240320a",
+  "content": "The Federal Reserve today announced a surprise 0.25% interest rate hike, citing persistent inflationary pressures. Chairman Powell's remarks were decidedly hawkish, emphasizing the committee's resolve to bring inflation back to the 2% target, even at the risk of a short-term economic slowdown.",
+  "ip": "127.0.0.1"
+}

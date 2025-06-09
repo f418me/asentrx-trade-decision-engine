@@ -1,0 +1,175 @@
+# flyctl launch added from .gitignore
+**/venv
+**/.env
+tests/e2e/.env.test
+**/.idea
+
+# flyctl launch added from .idea/.gitignore
+# Default ignored files
+.idea/shelf
+.idea/workspace.xml
+# Editor-based HTTP Client requests
+.idea/httpRequests
+# Datasource local storage ignored files
+.idea/dataSources
+.idea/dataSources.local.xml
+
+# flyctl launch added from .pytest_cache/.gitignore
+# Created by pytest automatically.
+.pytest_cache/**/*
+
+# flyctl launch added from venv/.gitignore
+# created by virtualenv automatically
+venv/**/*
+
+# flyctl launch added from venv/src/bitfinex-api-py/.gitignore
+venv/src/bitfinex-api-py/**/.venv
+venv/src/bitfinex-api-py/**/.DS_Store
+venv/src/bitfinex-api-py/**/.vscode
+venv/src/bitfinex-api-py/**/.python-version
+venv/src/bitfinex-api-py/**/__pycache__
+
+venv/src/bitfinex-api-py/**/bitfinex_api_py.egg-info
+venv/src/bitfinex-api-py/**/bitfinex_api_py.dist-info
+venv/src/bitfinex-api-py/**/build
+venv/src/bitfinex-api-py/**/dist
+venv/src/bitfinex-api-py/**/pip-wheel-metadata
+venv/src/bitfinex-api-py/**/.eggs
+
+venv/src/bitfinex-api-py/**/.idea
+
+venv/src/bitfinex-api-py/**/venv
+
+# flyctl launch added from venv/src/truthbrush/.gitignore
+venv/src/truthbrush/**/out/*
+
+# Byte-compiled / optimized / DLL files
+venv/src/truthbrush/**/__pycache__
+venv/src/truthbrush/**/*.py[cod]
+venv/src/truthbrush/**/*$py.class
+
+# C extensions
+venv/src/truthbrush/**/*.so
+
+# Distribution / packaging
+venv/src/truthbrush/**/.Python
+venv/src/truthbrush/**/build
+venv/src/truthbrush/**/develop-eggs
+venv/src/truthbrush/**/dist
+venv/src/truthbrush/**/downloads
+venv/src/truthbrush/**/eggs
+venv/src/truthbrush/**/.eggs
+venv/src/truthbrush/**/lib
+venv/src/truthbrush/**/lib64
+venv/src/truthbrush/**/parts
+venv/src/truthbrush/**/sdist
+venv/src/truthbrush/**/var
+venv/src/truthbrush/**/wheels
+venv/src/truthbrush/**/pip-wheel-metadata
+venv/src/truthbrush/**/share/python-wheels
+venv/src/truthbrush/**/*.egg-info
+venv/src/truthbrush/**/.installed.cfg
+venv/src/truthbrush/**/*.egg
+venv/src/truthbrush/**/MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+venv/src/truthbrush/**/*.manifest
+venv/src/truthbrush/**/*.spec
+
+# Installer logs
+venv/src/truthbrush/**/pip-log.txt
+venv/src/truthbrush/**/pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+venv/src/truthbrush/**/htmlcov
+venv/src/truthbrush/**/.tox
+venv/src/truthbrush/**/.nox
+venv/src/truthbrush/**/.coverage
+venv/src/truthbrush/**/.coverage.*
+venv/src/truthbrush/**/.cache
+venv/src/truthbrush/**/nosetests.xml
+venv/src/truthbrush/**/coverage.xml
+venv/src/truthbrush/**/*.cover
+venv/src/truthbrush/**/*.py,cover
+venv/src/truthbrush/**/.hypothesis
+venv/src/truthbrush/**/.pytest_cache
+
+# Translations
+venv/src/truthbrush/**/*.mo
+venv/src/truthbrush/**/*.pot
+
+# Django stuff:
+venv/src/truthbrush/**/*.log
+venv/src/truthbrush/**/local_settings.py
+venv/src/truthbrush/**/db.sqlite3
+venv/src/truthbrush/**/db.sqlite3-journal
+
+# Flask stuff:
+venv/src/truthbrush/**/instance
+venv/src/truthbrush/**/.webassets-cache
+
+# Scrapy stuff:
+venv/src/truthbrush/**/.scrapy
+
+# Sphinx documentation
+venv/src/truthbrush/**/docs/_build
+
+# PyBuilder
+venv/src/truthbrush/**/target
+
+# Jupyter Notebook
+venv/src/truthbrush/**/.ipynb_checkpoints
+
+# IPython
+venv/src/truthbrush/**/profile_default
+venv/src/truthbrush/**/ipython_config.py
+
+# pyenv
+venv/src/truthbrush/**/.python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow
+venv/src/truthbrush/**/__pypackages__
+
+# Celery stuff
+venv/src/truthbrush/**/celerybeat-schedule
+venv/src/truthbrush/**/celerybeat.pid
+
+# SageMath parsed files
+venv/src/truthbrush/**/*.sage.py
+
+# Environments
+venv/src/truthbrush/**/.env
+venv/src/truthbrush/**/.venv
+venv/src/truthbrush/**/env
+venv/src/truthbrush/**/venv
+venv/src/truthbrush/**/ENV
+venv/src/truthbrush/**/env.bak
+venv/src/truthbrush/**/venv.bak
+
+# Spyder project settings
+venv/src/truthbrush/**/.spyderproject
+venv/src/truthbrush/**/.spyproject
+
+# Rope project settings
+venv/src/truthbrush/**/.ropeproject
+
+# mkdocs documentation
+venv/src/truthbrush/site
+
+# mypy
+venv/src/truthbrush/**/.mypy_cache
+venv/src/truthbrush/**/.dmypy.json
+venv/src/truthbrush/**/dmypy.json
+
+# Pyre type checker
+venv/src/truthbrush/**/.pyre
+fly.toml
