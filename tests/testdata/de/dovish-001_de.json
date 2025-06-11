@@ -1,0 +1,9 @@
+{
+  "uuid": "curl-test-dovish-001",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240501a.htm",
+  "username": "FED",
+  "content-id": "monetary20240501a",
+  "content": "Angesichts der Anzeichen einer sich abkühlenden Wirtschaft und nachlassender Inflationsraten hat die Federal Reserve heute eine Zinssenkung um 0,25% beschlossen. In der Pressekonferenz betonte der Vorsitzende Powell, dass die Politik nun flexibler sei, um auf schwächere Wirtschaftsdaten zu reagieren und das Beschäftigungsziel zu unterstützen.",
+  "ip": "127.0.0.1"
+}

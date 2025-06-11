@@ -1,0 +1,9 @@
+{
+  "uuid": "curl-test-mixed-001",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240918a.htm",
+  "username": "FED",
+  "content-id": "monetary20240918a",
+  "content": "The federal funds rate was left unchanged, as expected. While the statement acknowledged recent progress on inflation, the language regarding future policy decisions was tightened. Some members continue to see significant upside risks to inflation, indicating a divided stance within the Committee.",
+  "ip": "127.0.0.1"
+}

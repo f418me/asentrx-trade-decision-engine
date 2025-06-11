@@ -1,0 +1,9 @@
+{
+  "uuid": "curl-test-neutral-001",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240612a.htm",
+  "username": "FED",
+  "content-id": "monetary20240612a",
+  "content": "Das FOMC hat beschlossen, den Leitzins in der Spanne von 4,25% bis 4,50% unverändert zu lassen. Das Komitee erklärte, es werde die eingehenden Wirtschaftsdaten weiterhin genau beobachten, bevor es weitere Schritte erwägt. Die Risiken für das Erreichen der Inflations- und Beschäftigungsziele werden als weitgehend ausgeglichen angesehen. Man werde einen 'geduldigen Ansatz' verfolgen.",
+  "ip": "127.0.0.1"
+}

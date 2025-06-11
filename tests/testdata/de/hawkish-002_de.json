@@ -1,0 +1,9 @@
+{
+  "uuid": "curl-test-hawkish-003",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240731a.htm",
+  "username": "FED",
+  "content-id": "monetary20240731a",
+  "content": "Als Reaktion auf unerwartet hohe Inflationsdaten hat die Federal Reserve eine aggressive Zinserhöhung um 0,50% vorgenommen. Der Vorsitzende Powell signalisierte, dass weitere deutliche Erhöhungen wahrscheinlich sind und schloss eine Zinspause in naher Zukunft aus. Die Bekämpfung der Inflation habe 'absolute Priorität'.",
+  "ip": "127.0.0.1"
+}

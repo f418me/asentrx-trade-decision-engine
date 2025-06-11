@@ -1,0 +1,9 @@
+{
+  "uuid": "curl-test-neutral-001",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240612a.htm",
+  "username": "FED",
+  "content-id": "monetary20240612a",
+  "content": "The FOMC has decided to leave the federal funds rate unchanged in the range of 4.25% to 4.50%. The Committee stated it will continue to closely monitor incoming economic data before considering further steps. The risks to achieving its inflation and employment goals are seen as broadly balanced. The Committee will maintain a 'patient approach'.",
+  "ip": "127.0.0.1"
+}

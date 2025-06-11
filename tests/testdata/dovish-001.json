@@ -1,0 +1,9 @@
+{
+  "uuid": "curl-test-dovish-001",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240501a.htm",
+  "username": "FED",
+  "content-id": "monetary20240501a",
+  "content": "Given signs of a cooling economy and easing inflation rates, the Federal Reserve today announced a 0.25% interest rate cut. In the press conference, Chairman Powell emphasized that policy would now be more flexible to respond to weaker economic data and to support the employment mandate.",
+  "ip": "127.0.0.1"
+}

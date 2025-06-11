@@ -1,0 +1,9 @@
+{
+  "uuid": "curl-test-mixed-001",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240918a.htm",
+  "username": "FED",
+  "content-id": "monetary20240918a",
+  "content": "Der Leitzins wurde wie erwartet unverändert belassen. Während das Statement die jüngsten Fortschritte bei der Inflation anerkannte, wurde die Sprache bezüglich zukünftiger Politikentscheidungen verschärft. Einige Mitglieder sehen weiterhin erhebliche Aufwärtsrisiken für die Inflation, was auf eine gespaltene Haltung innerhalb des Komitees hindeutet.",
+  "ip": "127.0.0.1"
+}

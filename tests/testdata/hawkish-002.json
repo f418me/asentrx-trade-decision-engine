@@ -1,0 +1,9 @@
+{
+  "uuid": "curl-test-hawkish-003",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240731a.htm",
+  "username": "FED",
+  "content-id": "monetary20240731a",
+  "content": "In response to unexpectedly high inflation data, the Federal Reserve has implemented an aggressive 0.50% interest rate hike. Chairman Powell signaled that further significant hikes are likely and ruled out a pause in the near future. He stated that fighting inflation has 'absolute priority'.",
+  "ip": "127.0.0.1"
+}
