@@ -45,7 +45,7 @@ async def test_e2e_flow_with_dovish_fed_statement(test_app_client, caplog, mocke
     # --- KEY FIX ---
     # Temporarily lower the confidence threshold for this test to ensure the trade is triggered,
     # making the test robust against slight variations in LLM confidence scores.
-    # The LLM returned 0.90, so we set the medium threshold below that.
+    # Assuming the LLM might return ~0.90, we set the medium threshold below that.
     mocker.patch.object(AppConfig, 'CONFIDENCE_THRESHOLD_FED_MED', 0.85)
     mocker.patch.object(AppConfig, 'CONFIDENCE_THRESHOLD_FED_HIGH', 0.95)  # Also adjust high to be safe
 
@@ -54,6 +54,7 @@ async def test_e2e_flow_with_dovish_fed_statement(test_app_client, caplog, mocke
     response = test_app_client.post("/notify/web-monitor", json=payload)
     print(f"--- Received response: {response.status_code} {response.text} ---")
 
+    # Give the background task a moment to run
     await asyncio.sleep(0.1)
 
     # 3. Assert
@@ -63,7 +64,7 @@ async def test_e2e_flow_with_dovish_fed_statement(test_app_client, caplog, mocke
     simulation_log_found = False
     for record in caplog.records:
         if record.name == 'aSentrX.TradeDecisionManager' and "Simulating order execution" in record.message:
-            # We now expect a "Medium-Confidence" trade since 0.90 is > 0.85 but < 0.95
+            # We now expect a "Medium-Confidence" trade since a score like 0.90 is > 0.85 but < 0.95
             assert "BUY/LONG" in record.message
             assert "Medium-Confidence" in record.message
             simulation_log_found = True
@@ -91,13 +92,15 @@ async def test_e2e_flow_with_hawkish_fed_statement(test_app_client, caplog, mock
     payload = {
         "uuid": "e2e-hawkish-sim-456",
         "type": "web-monitor",
+        "url": "http://e2e-test.com/hawkish-statement-sim",
+        "content-id": "fomc-hawkish-e2e-sim",
         "content": hawkish_content,
         "ip": "127.0.0.1"
     }
 
     caplog.set_level(logging.INFO)
 
-    # Also patch the thresholds here for consistency
+    # Also patch the thresholds here for consistency and robustness
     mocker.patch.object(AppConfig, 'CONFIDENCE_THRESHOLD_FED_MED', 0.85)
     mocker.patch.object(AppConfig, 'CONFIDENCE_THRESHOLD_FED_HIGH', 0.95)
 
@@ -115,10 +118,11 @@ async def test_e2e_flow_with_hawkish_fed_statement(test_app_client, caplog, mock
     simulation_log_found = False
     for record in caplog.records:
         if record.name == 'aSentrX.TradeDecisionManager' and "Simulating order execution" in record.message:
-            assert "SHORT" in record.message
+            assert "SELL/SHORT" in record.message
+            # We can't be sure if it's Medium or High, so checking for side is sufficient
             simulation_log_found = True
             break
 
-    assert simulation_log_found, "The log message for simulating a SHORT trade was not found."
+    assert simulation_log_found, "The log message for simulating a SELL/SHORT trade was not found."
     print("\n--- E2E VERIFICATION SUCCESS ---")
-    print("Correctly identified log message for simulated SHORT order.")
+    print("Correctly identified log message for simulated SELL/SHORT order.")
