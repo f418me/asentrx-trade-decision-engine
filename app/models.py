@@ -102,6 +102,10 @@ class FEDDecisionImpact(BaseModel):
     actual_interest_rate_change_type: Optional[Literal["increase", "decrease", "hold"]] = None
     actual_interest_rate_change_amount: Optional[str] = None
     actual_narrative: Optional[Literal["hawkish", "dovish", "neutral", "mixed"]] = None
+    fed_chair_event: Optional[str] = Field(
+        default=None,
+        description="Summary if the text indicates the Federal Reserve Chair was fired, resigned or replaced."
+    )
 
 class FailedFEDAnalysis(BaseModel):
     """Indicates that the FED decision analysis failed."""

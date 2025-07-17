@@ -6,7 +6,7 @@ The aSentrX Trade Decision Engine is a FastAPI-based service designed to receive
 
 -   **Modular FastAPI Service:** Built with a clean separation of concerns, making it easy to extend and maintain.
 -   **AI-Powered Analysis:**
-    -   **FED Decision Agent:** A specialized AI agent to analyze Federal Reserve announcements, compare them against predefined expectations, and predict the market impact on Bitcoin.
+    -   **FED Decision Agent:** A specialized AI agent to analyze Federal Reserve announcements, compare them against predefined expectations, and predict the market impact on Bitcoin. It can also detect news about changes to the FED Chair and include that in the analysis.
     -   **Extensible Design:** Ready to incorporate other AI agents for different data sources (e.g., social media).
 -   **Configurable Trading Logic:** Centralized management of trade parameters (amounts, leverage, confidence thresholds) via environment variables, allowing for fine-tuned trading strategies.
 -   **Automated Trading:** Integrates with the Bitfinex API to execute `LIMIT` orders. Features a `PROD_EXECUTION` flag for safe "dry runs".

@@ -44,6 +44,7 @@ async def test_fed_analyzer_handles_successful_analysis(mocker):
     assert isinstance(result, FEDDecisionImpact)
     assert result.impact_on_bitcoin == "positive"
     assert result.confidence == 0.95
+    assert result.fed_chair_event is None
     # Ensure the agent's run method was called exactly once with the correct content.
     mock_agent_instance.run.assert_awaited_once_with("Some FED announcement text.")
 
@@ -70,3 +71,26 @@ async def test_fed_analyzer_handles_failed_analysis(mocker):
     # 3. Assert
     assert isinstance(result, FailedFEDAnalysis)
     assert "agent failed" in result.error_message
+
+
+async def test_fed_analyzer_detects_chair_event(mocker):
+    """Ensures the analyzer returns the fed_chair_event field when present."""
+    mock_ai_output = FEDDecisionImpact(
+        impact_on_bitcoin="negative",
+        confidence=0.9,
+        reasoning="Leadership change creates uncertainty",
+        actual_fed_decision_summary="Rates unchanged",
+        fed_chair_event="Powell fired",
+    )
+
+    mock_agent_instance = MagicMock()
+    mock_agent_instance.run = AsyncMock(return_value=MagicMock(output=mock_ai_output))
+
+    mocker.patch('app.ai.agents.fed_decision_agent.FEDDecisionAnalyzer._initialize_agent', return_value=mock_agent_instance)
+    mocker.patch('app.ai.agents.fed_decision_agent.FEDDecisionAnalyzer._load_expectations')
+
+    analyzer = FEDDecisionAnalyzer()
+    result = await analyzer.analyze_content("Powell was dismissed by the President.")
+
+    assert isinstance(result, FEDDecisionImpact)
+    assert result.fed_chair_event == "Powell fired"
