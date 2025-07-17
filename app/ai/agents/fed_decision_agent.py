@@ -51,6 +51,7 @@ class FEDDecisionAnalyzer:
                 # --- ÄNDERUNG 3: Neue Anweisung im Prompt hinzufügen ---
                 '5. **Handle Irrelevant Content:** If the text is clearly NOT about a Federal Reserve interest rate decision (e.g., it is about a different topic like a census, a report on banking supervision, etc.), '
                 'you MUST output an `IrrelevantFEDContent` object with a brief `reason` explaining why the text is not an FOMC decision statement.'
+                '\n6. **Detect FED Chair Changes:** If the text mentions that the Federal Reserve Chair has been fired, resigned, or replaced, set `fed_chair_event` to a short description of that change.'
             ),
         )
 
@@ -76,6 +77,10 @@ class FEDDecisionAnalyzer:
                     f"Impact='{result.output.impact_on_bitcoin}', Confidence={result.output.confidence:.2f}, "
                     f"Summary='{result.output.actual_fed_decision_summary}', Reasoning='{result.output.reasoning}'"
                 )
+                if result.output.fed_chair_event:
+                    logger.info(
+                        f"Content ID [{content_id_for_logging}]: Detected FED chair event: {result.output.fed_chair_event}"
+                    )
                 return result.output
             elif isinstance(result.output, IrrelevantFEDContent):
                 logger.info(
