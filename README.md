@@ -1,3 +1,5 @@
+> **Note:** This service is a component of the [aSentrX Project](https://github.com/f418me/aSentrX). Please see the main repository for a complete architectural overview.
+
 # aSentrX Trade Decision Engine
 
 The aSentrX Trade Decision Engine is a FastAPI-based service designed to receive notifications from external monitoring clients (e.g., web scrapers, social media monitors). It analyzes the incoming content using AI agents and triggers automated trading actions on the Bitfinex exchange based on the analysis.
@@ -153,7 +155,7 @@ This payload contains text that should be interpreted by the AI as positive for 
 
 ```bash
 curl -X 'POST' \
-  'http://localhost:8000/notify/web-monitor' \
+  'http://localhost:8000/notify' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -182,7 +184,7 @@ This payload contains text that should be interpreted as negative, potentially t
 
 ```bash
 curl -X 'POST' \
-  'http://localhost:8000/notify/web-monitor' \
+  'http://localhost:8000/notify' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -194,4 +196,6 @@ curl -X 'POST' \
   "ip": "127.0.0.1"
 }'
 ```
-**Note:** The single quotes within the JSON content are escaped with `'\''` for shell compatibility.
+**Note:** The single quotes within the JSON content are escaped with `'\'''` for shell compatibility.
+
+```
