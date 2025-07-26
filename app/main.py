@@ -1,3 +1,4 @@
+
 import logging
 import uvicorn
 import os
@@ -32,8 +33,8 @@ async def lifespan(app: FastAPI):
     app.state.sms_notifier = SmsNotifier()
 
     # Ein Set für alles, was in dieser Sitzung verarbeitet wird.
-    app.state.processed_urls: Set[str] = set()
-    logger.info("Initialized in-memory store for tracking processed URLs this session.")
+    app.state.processed_content_ids: Set[str] = set()
+    logger.info("Initialized in-memory store for tracking processed content IDs this session.")
 
     try:
         bitfinex_trader = BitfinexTrader()
@@ -81,26 +82,35 @@ async def read_root():
     return {"message": "aSentrX Trade Decision Engine is running!"}
 
 
-@app.post("/notify/web-monitor", tags=["Notifications"])
-async def handle_web_monitor_notification(request: Request, payload: WebMonitorPayload):
-    logger.info(f"Received web-monitor notification (UUID: {payload.uuid}, URL: {payload.url}).")
+@app.post("/notify", tags=["Notifications"])
+async def handle_notification(request: Request, payload: WebMonitorPayload):
+    logger.info(f"Received notification (Type: {payload.type}, UUID: {payload.uuid}).")
 
-    processed_urls: Set[str] = request.app.state.processed_urls
-    url_to_process = payload.url
+    processed_ids: Set[str] = request.app.state.processed_content_ids
+    
+    # Use URL for web-monitor and content_id for others
+    if payload.type == "web-monitor":
+        if not payload.url:
+            raise HTTPException(status_code=400, detail="Missing URL for web-monitor payload.")
+        id_to_process = payload.url
+    else:
+        if not payload.content_id:
+            raise HTTPException(status_code=400, detail=f"Missing content-id for {payload.type} payload.")
+        id_to_process = payload.content_id
 
-    # Prüfe, ob die URL bereits in unserem Set ist.
-    if url_to_process in processed_urls:
+    # Check if the ID is already in our set.
+    if id_to_process in processed_ids:
         logger.warning(
-            f"Skipping request for URL that is already processed or being processed in this session: {url_to_process}"
+            f"Skipping request for ID that is already processed or being processed in this session: {id_to_process}"
         )
         raise HTTPException(
             status_code=409,
-            detail=f"URL '{url_to_process}' is already being processed or has been processed in this session."
+            detail=f"ID '{id_to_process}' is already being processed or has been processed in this session."
         )
 
-    # Füge die URL SOFORT zum Set hinzu.
-    processed_urls.add(url_to_process)
-    logger.debug(f"Added URL to processed set for this session: {url_to_process}")
+    # Add the ID IMMEDIATELY to the set.
+    processed_ids.add(id_to_process)
+    logger.debug(f"Added ID to processed set for this session: {id_to_process}")
 
     try:
         fed_decision_analyzer = request.app.state.fed_decision_analyzer
@@ -115,16 +125,16 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
 
         if isinstance(fed_analysis_result, FailedFEDAnalysis):
             logger.error(f"FED decision analysis failed for UUID {payload.uuid}: {fed_analysis_result.error_message}")
-            return {"status": "success_analysis_failed", "message": f"URL processed; analysis failed: {fed_analysis_result.error_message}"}
+            return {"status": "success_analysis_failed", "message": f"Content processed; analysis failed: {fed_analysis_result.error_message}"}
 
         if isinstance(fed_analysis_result, IrrelevantFEDContent):
             logger.info(f"Content from UUID {payload.uuid} analyzed as irrelevant. Reason: {fed_analysis_result.reason}")
-            return {"status": "success_no_action", "message": "URL processed; content analyzed as irrelevant."}
+            return {"status": "success_no_action", "message": "Content processed; content analyzed as irrelevant."}
 
         trade_decision_manager = request.app.state.trade_decision_manager
         if not trade_decision_manager:
             logger.error("Trade Decision Manager not available for actionable event.")
-            return {"status": "success_trade_manager_unavailable", "message": "URL processed; actionable event found, but Trade Manager is unavailable."}
+            return {"status": "success_trade_manager_unavailable", "message": "Content processed; actionable event found, but Trade Manager is unavailable."}
 
         logger.info(f"Handing off actionable analysis result for UUID {payload.uuid} to TradeDecisionManager.")
         trade_decision_manager.execute_trade_from_analysis(
@@ -139,13 +149,9 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
         logger.critical(f"Critical unhandled error during processing for UUID {payload.uuid}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-# --- HIER IST DER FEHLENDE TEIL ---
 if __name__ == "__main__":
-    # Füge das Projektverzeichnis zum sys.path hinzu, um sicherzustellen,
-    # dass 'app' als Modul gefunden wird, wenn man die Datei direkt ausführt.
     if PROJECT_ROOT not in sys.path:
         sys.path.insert(0, PROJECT_ROOT)
 
     logger.info("Starting server directly from main.py")
-    # Der `reload=True` Parameter ist nützlich für die Entwicklung.
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
