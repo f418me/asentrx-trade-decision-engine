@@ -89,9 +89,29 @@ asentrx-trade-decision-engine/
 
 ### Running Tests
 
-To run the full suite of unit and end-to-end tests, use `pytest`:
+The test suite is divided into several categories using pytest markers.
+
+-   **`unit`**: Fast tests for individual components.
+-   **`e2e`**: End-to-end tests that mock external services.
+-   **`live_llm`**: A special E2E test that makes a real call to the configured LLM.
+
+You can run tests as follows:
+
+**1. Run all tests (including the live LLM test):**
 ```bash
 poetry run pytest
+```
+
+**2. Run only the fast unit and mocked E2E tests:**
+This is the recommended command for CI/CD and most local testing.
+```bash
+poetry run pytest -m "not live_llm"
+```
+
+**3. Run only the live LLM integration test:**
+Requires a valid LLM API key in `.env.test`.
+```bash
+poetry run pytest -m live_llm
 ```
 
 ---

@@ -35,6 +35,7 @@ pythonpath = [
 ]
 markers = [
     "e2e: marks tests as end-to-end",
+    "live_llm: marks tests that make live calls to an LLM",
 ]
 
 asyncio_mode = "auto"
