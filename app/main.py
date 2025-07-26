@@ -12,7 +12,7 @@ EXPECTATIONS_FILE_PATH = os.path.join(PROJECT_ROOT, "app", "expectations.json")
 from app.ai.agents.fed_decision_agent import FEDDecisionAnalyzer
 from app.ai.agents.social_media_agent import SocialMediaPostAnalyzer
 from app.models import (
-    WebMonitorPayload,
+    WebMonitorPayload, SocialMediaPayload,
     FailedFEDAnalysis, IrrelevantFEDContent, FEDDecisionImpact,
     FailedSocialMediaAnalysis, IrrelevantSocialMediaContent, SocialMediaAnalysisOutput,
     AnyAnalysisResult
@@ -94,72 +94,89 @@ async def read_root():
     return {"message": "aSentrX Trade Decision Engine is running!"}
 
 
-@app.post("/notify", tags=["Notifications"])
-async def handle_notification(request: Request, payload: WebMonitorPayload):
-    logger.info(f"Received notification (Type: {payload.type}, UUID: {payload.uuid}).")
+@app.post("/notify/web-monitor", tags=["Notifications"])
+async def handle_web_monitor_notification(request: Request, payload: WebMonitorPayload):
+    """
+    Handles notifications from the web monitor client (e.g., FED announcements).
+    """
+    logger.info(f"Received web-monitor notification (UUID: {payload.uuid}).")
 
     # --- 1. Deduplication ---
     processed_ids: Set[str] = request.app.state.processed_content_ids
-    id_to_process = payload.url if payload.type == "web-monitor" else payload.content_id
+    if payload.url in processed_ids:
+        logger.warning(f"Skipping already processed URL: {payload.url}")
+        raise HTTPException(status_code=409, detail=f"URL '{payload.url}' already processed.")
     
-    if not id_to_process:
-        raise HTTPException(status_code=400, detail=f"Missing 'url' for web-monitor or 'content-id' for {payload.type}.")
+    processed_ids.add(payload.url)
+    logger.debug(f"Added URL to processed set: {payload.url}")
 
-    if id_to_process in processed_ids:
-        logger.warning(f"Skipping already processed ID: {id_to_process}")
-        raise HTTPException(status_code=409, detail=f"ID '{id_to_process}' already processed.")
-    
-    processed_ids.add(id_to_process)
-    logger.debug(f"Added ID to processed set: {id_to_process}")
+    # --- 2. Routing to FED Decision Analyzer ---
+    analyzer = request.app.state.fed_decision_analyzer
+    if not analyzer:
+        raise HTTPException(status_code=503, detail="FED Decision Analyzer is not available.")
 
-    # --- 2. Routing to correct AI Analyzer ---
-    analysis_result: AnyAnalysisResult = None
-    content_id_for_log = payload.content_id or payload.uuid
+    logger.info(f"Routing UUID {payload.uuid} to FEDDecisionAnalyzer.")
+    analysis_result = await analyzer.analyze_content(payload.content, payload.content_id or payload.uuid)
 
-    try:
-        if payload.type == "web-monitor":
-            analyzer = request.app.state.fed_decision_analyzer
-            if not analyzer:
-                raise HTTPException(status_code=503, detail="FED Decision Analyzer is not available.")
-            logger.info(f"Routing UUID {payload.uuid} to FEDDecisionAnalyzer.")
-            analysis_result = await analyzer.analyze_content(payload.content, content_id_for_log)
+    # --- 3. Process analysis result ---
+    return await _process_analysis_result(request, analysis_result, payload.uuid)
 
-        elif payload.type == "truthsocial":
-            analyzer = request.app.state.social_media_analyzer
-            if not analyzer:
-                raise HTTPException(status_code=503, detail="Social Media Analyzer is not available.")
-            logger.info(f"Routing UUID {payload.uuid} to SocialMediaPostAnalyzer.")
-            analysis_result = await analyzer.analyze_content(payload.content, content_id_for_log)
-            
-        else:
-            logger.warning(f"Received notification for unhandled type: {payload.type}")
-            raise HTTPException(status_code=400, detail=f"Unhandled notification type: {payload.type}")
 
-        # --- 3. Handling Analysis Results ---
-        if isinstance(analysis_result, (FailedFEDAnalysis, FailedSocialMediaAnalysis)):
-            logger.error(f"Analysis failed for UUID {payload.uuid}: {analysis_result.error_message}")
-            return {"status": "success_analysis_failed", "message": f"Analysis failed: {analysis_result.error_message}"}
+@app.post("/notify/truth-social", tags=["Notifications"])
+async def handle_truth_social_notification(request: Request, payload: SocialMediaPayload):
+    """
+    Handles notifications from the Truth Social client.
+    """
+    logger.info(f"Received truth-social notification (UUID: {payload.uuid}).")
 
-        if isinstance(analysis_result, (IrrelevantFEDContent, IrrelevantSocialMediaContent)):
-            logger.info(f"Content from UUID {payload.uuid} analyzed as irrelevant. Reason: {analysis_result.reason}")
-            return {"status": "success_no_action", "message": "Content analyzed as irrelevant."}
+    # --- 1. Deduplication ---
+    processed_ids: Set[str] = request.app.state.processed_content_ids
+    if payload.content_id in processed_ids:
+        logger.warning(f"Skipping already processed content_id: {payload.content_id}")
+        raise HTTPException(status_code=409, detail=f"Content ID '{payload.content_id}' already processed.")
 
-        # --- 4. Triggering Trade Logic for Actionable Events ---
-        trade_decision_manager = request.app.state.trade_decision_manager
-        if not trade_decision_manager:
-            logger.error("Trade Decision Manager not available for actionable event.")
-            return {"status": "success_trade_manager_unavailable", "message": "Actionable event found, but Trade Manager is unavailable."}
+    processed_ids.add(payload.content_id)
+    logger.debug(f"Added content_id to processed set: {payload.content_id}")
 
-        logger.info(f"Handing off actionable analysis result for UUID {payload.uuid} to TradeDecisionManager.")
-        trade_decision_manager.execute_trade_from_analysis(analysis_result, content_id_for_log)
-        
-        return {"status": "success", "message": "Notification processed and trade logic triggered."}
+    # --- 2. Routing to Social Media Analyzer ---
+    analyzer = request.app.state.social_media_analyzer
+    if not analyzer:
+        raise HTTPException(status_code=503, detail="Social Media Analyzer is not available.")
 
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.critical(f"Critical unhandled error for UUID {payload.uuid}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    logger.info(f"Routing UUID {payload.uuid} to SocialMediaPostAnalyzer.")
+    analysis_result = await analyzer.analyze_content(payload.content, payload.content_id)
+
+    # --- 3. Process analysis result ---
+    return await _process_analysis_result(request, analysis_result, payload.uuid)
+
+
+async def _process_analysis_result(request: Request, analysis_result: AnyAnalysisResult, uuid: str):
+    """
+    Shared logic to handle the result from any AI analyzer.
+    """
+    if isinstance(analysis_result, (FailedFEDAnalysis, FailedSocialMediaAnalysis)):
+        logger.error(f"Analysis failed for UUID {uuid}: {analysis_result.error_message}")
+        # Still return 200 OK as the notification was successfully received and processed.
+        return {"status": "success_analysis_failed", "message": f"Analysis failed: {analysis_result.error_message}"}
+
+    if isinstance(analysis_result, (IrrelevantFEDContent, IrrelevantSocialMediaContent)):
+        logger.info(f"Content from UUID {uuid} analyzed as irrelevant. Reason: {analysis_result.reason}")
+        return {"status": "success_no_action", "message": "Content analyzed as irrelevant."}
+
+    # --- Triggering Trade Logic for Actionable Events ---
+    trade_decision_manager = request.app.state.trade_decision_manager
+    if not trade_decision_manager:
+        logger.error(f"Trade Decision Manager not available for actionable event from UUID {uuid}.")
+        # Return a 200 but indicate that the trade could not be processed.
+        return {"status": "success_trade_manager_unavailable",
+                "message": "Actionable event found, but Trade Manager is unavailable."}
+
+    logger.info(f"Handing off actionable analysis result for UUID {uuid} to TradeDecisionManager.")
+    # This runs in the background and does not block the response.
+    trade_decision_manager.execute_trade_from_analysis(analysis_result, uuid)
+
+    return {"status": "success", "message": "Notification processed and trade logic triggered."}
+
 
 
 if __name__ == "__main__":

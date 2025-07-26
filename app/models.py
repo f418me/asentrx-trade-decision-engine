@@ -4,19 +4,32 @@ from pydantic import BaseModel, Field
 import uuid
 
 
-# --- Incoming Payload Model ---
+# --- Incoming Payload Models ---
 class WebMonitorPayload(BaseModel):
     """
-    Pydantic model for the data sent from any monitor client.
-    The `type` field is used to route the payload to the correct analyzer.
+    Pydantic model for data from the web monitor client (e.g., FED announcements).
     """
     uuid: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    type: Literal["web-monitor", "truthsocial", "twitter"]
-    url: Optional[str] = None
-    username: Optional[str] = None
+    type: Literal["web-monitor"] = "web-monitor"
+    url: str
     content_id: Optional[str] = Field(default=None, alias="content-id")
     content: str
     ip: str
+
+
+class SocialMediaPayload(BaseModel):
+    """
+    Pydantic model for data from social media clients (e.g., Truth Social).
+    """
+    uuid: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    type: Literal["truthsocial"] = "truthsocial"
+    url: str
+    username: Optional[str] = None
+    content_id: str = Field(alias="content-id")
+    content: str
+    ip: str
+
+
 
 
 # --- Social Media Analysis Models ---

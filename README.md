@@ -45,7 +45,54 @@ asentrx-trade-decision-engine/
 -   [Poetry](https://python-poetry.org/docs/#installation)
 -   [Docker](https://www.docker.com/products/docker-desktop/)
 
-### ... (Setup instructions remain the same) ...
+### Setup and Run Locally (with Poetry)
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/f418me/asentrx-trade-decision-engine.git
+    cd asentrx-trade-decision-engine
+    ```
+
+2.  **Set up environment variables:**
+    Copy the example `.env-example` file to `.env` and fill in the required values (e.g., API keys, notification settings).
+    ```bash
+    cp .env-example .env
+    ```
+
+3.  **Install dependencies:**
+    Make sure you have Poetry installed, then run:
+    ```bash
+    poetry install
+    ```
+
+4.  **Run the application:**
+    The application will be served by Uvicorn and accessible at `http://localhost:8000`.
+    ```bash
+    poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ```
+
+### Setup and Run (with Docker)
+
+1.  **Clone the repository and set up the environment:**
+    Follow steps 1 and 2 from the local setup guide above.
+
+2.  **Build and run the Docker container:**
+    This will start the service in a detached container.
+    ```bash
+    docker-compose up --build -d
+    ```
+
+3.  **Check the logs:**
+    ```bash
+    docker-compose logs -f
+    ```
+
+### Running Tests
+
+To run the full suite of unit and end-to-end tests, use `pytest`:
+```bash
+poetry run pytest
+```
 
 ---
 

@@ -1,8 +1,8 @@
-
 import pytest
 from unittest.mock import MagicMock
 from app.trading.trade_decision_manager import TradeDecisionManager
 from app.models import SocialMediaAnalysisOutput
+from app.config import AppConfig
 
 @pytest.fixture
 def mock_trader():
@@ -12,16 +12,15 @@ def mock_trader():
 def mock_sms_notifier():
     return MagicMock()
 
-@pytest.fixture
-def decision_manager(mock_trader, mock_sms_notifier):
-    return TradeDecisionManager(trader=mock_trader, sms_notifier=mock_sms_notifier)
-
-def test_execute_trade_from_social_media_bitcoin_high_confidence(decision_manager, mock_trader, monkeypatch):
+def test_execute_trade_from_social_media_bitcoin_high_confidence(mock_trader, mock_sms_notifier, mocker):
     # Arrange
-    monkeypatch.setenv("PROD_EXECUTION", "True")
-    monkeypatch.setenv("TS_ORDER_AMOUNT_BITCOIN_BUY_HIGH_CONF", "0.02")
-    monkeypatch.setenv("TS_LEVERAGE_BITCOIN_BUY_HIGH_CONF", "25")
+    mocker.patch.object(AppConfig, 'PROD_EXECUTION', True)
+    mocker.patch.object(AppConfig, 'TS_ORDER_AMOUNT_BITCOIN_BUY_HIGH_CONF', 0.02)
+    mocker.patch.object(AppConfig, 'TS_LEVERAGE_BITCOIN_BUY_HIGH_CONF', 25)
     
+    # Re-initialize manager to pick up patched config
+    decision_manager = TradeDecisionManager(trader=mock_trader, sms_notifier=mock_sms_notifier)
+
     analysis_result = SocialMediaAnalysisOutput(
         topic_classification="bitcoin",
         price_direction="up",
@@ -33,16 +32,19 @@ def test_execute_trade_from_social_media_bitcoin_high_confidence(decision_manage
 
     # Assert
     mock_trader.execute_order.assert_called_once()
-    called_args, _ = mock_trader.execute_order.call_args
-    assert called_args[1] == 0.02 # amount
-    assert called_args[2] == 25   # leverage
+    call_kwargs = mock_trader.execute_order.call_args.kwargs
+    assert call_kwargs['amount'] == 0.02
+    assert call_kwargs['leverage'] == 25
 
-def test_execute_trade_from_social_media_tariffs_med_confidence(decision_manager, mock_trader, monkeypatch):
+def test_execute_trade_from_social_media_tariffs_med_confidence(mock_trader, mock_sms_notifier, mocker):
     # Arrange
-    monkeypatch.setenv("PROD_EXECUTION", "True")
-    monkeypatch.setenv("TS_ORDER_AMOUNT_SHORT_MED_CONF", "-0.05")
-    monkeypatch.setenv("TS_LEVERAGE_SHORT_MED_CONF", "8")
-    monkeypatch.setenv("TS_CONFIDENCE_THRESHOLD_MED", "0.85")
+    mocker.patch.object(AppConfig, 'PROD_EXECUTION', True)
+    mocker.patch.object(AppConfig, 'TS_ORDER_AMOUNT_SHORT_MED_CONF', -0.05)
+    mocker.patch.object(AppConfig, 'TS_LEVERAGE_SHORT_MED_CONF', 8)
+    mocker.patch.object(AppConfig, 'TS_CONFIDENCE_THRESHOLD_MED', 0.85)
+
+    # Re-initialize manager to pick up patched config
+    decision_manager = TradeDecisionManager(trader=mock_trader, sms_notifier=mock_sms_notifier)
 
     analysis_result = SocialMediaAnalysisOutput(
         topic_classification="tariffs",
@@ -55,13 +57,14 @@ def test_execute_trade_from_social_media_tariffs_med_confidence(decision_manager
 
     # Assert
     mock_trader.execute_order.assert_called_once()
-    called_args, _ = mock_trader.execute_order.call_args
-    assert called_args[1] == -0.05 # amount
-    assert called_args[2] == 8    # leverage
+    call_kwargs = mock_trader.execute_order.call_args.kwargs
+    assert call_kwargs['amount'] == -0.05
+    assert call_kwargs['leverage'] == 8
 
-def test_no_trade_if_confidence_too_low(decision_manager, mock_trader, monkeypatch):
+def test_no_trade_if_confidence_too_low(mock_trader, mock_sms_notifier, mocker):
     # Arrange
-    monkeypatch.setenv("PROD_EXECUTION", "True")
+    mocker.patch.object(AppConfig, 'PROD_EXECUTION', True)
+    decision_manager = TradeDecisionManager(trader=mock_trader, sms_notifier=mock_sms_notifier)
     
     analysis_result = SocialMediaAnalysisOutput(
         topic_classification="market",
@@ -75,9 +78,10 @@ def test_no_trade_if_confidence_too_low(decision_manager, mock_trader, monkeypat
     # Assert
     mock_trader.execute_order.assert_not_called()
 
-def test_no_trade_for_irrelevant_topic(decision_manager, mock_trader, monkeypatch):
+def test_no_trade_for_irrelevant_topic(mock_trader, mock_sms_notifier, mocker):
     # Arrange
-    monkeypatch.setenv("PROD_EXECUTION", "True")
+    mocker.patch.object(AppConfig, 'PROD_EXECUTION', True)
+    decision_manager = TradeDecisionManager(trader=mock_trader, sms_notifier=mock_sms_notifier)
     
     analysis_result = SocialMediaAnalysisOutput(
         topic_classification="others",
