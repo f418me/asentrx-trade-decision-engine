@@ -10,7 +10,13 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPECTATIONS_FILE_PATH = os.path.join(PROJECT_ROOT, "app", "expectations.json")
 
 from app.ai.agents.fed_decision_agent import FEDDecisionAnalyzer
-from app.models import WebMonitorPayload, FailedFEDAnalysis, IrrelevantFEDContent, FEDDecisionImpact
+from app.ai.agents.social_media_agent import SocialMediaPostAnalyzer
+from app.models import (
+    WebMonitorPayload, SocialMediaPayload,
+    FailedFEDAnalysis, IrrelevantFEDContent, FEDDecisionImpact,
+    FailedSocialMediaAnalysis, IrrelevantSocialMediaContent, SocialMediaAnalysisOutput,
+    AnyAnalysisResult
+)
 from app.utils.logger_config import configure_logging, APP_LOGGER_NAME
 from app.utils.sms_notifier import SmsNotifier
 from app.trading.bitfinex_trader import BitfinexTrader
@@ -30,23 +36,37 @@ logger = logging.getLogger(f"{APP_LOGGER_NAME}.main_app")
 async def lifespan(app: FastAPI):
     logger.info(f"aSentrX Trade Decision Engine ({APP_LOGGER_NAME}) is starting up...")
     app.state.sms_notifier = SmsNotifier()
+    app.state.processed_content_ids: Set[str] = set()
+    logger.info("Initialized in-memory store for tracking processed content IDs.")
 
-    # Ein Set für alles, was in dieser Sitzung verarbeitet wird.
-    app.state.processed_urls: Set[str] = set()
-    logger.info("Initialized in-memory store for tracking processed URLs this session.")
-
+    # Initialize Bitfinex Trader
     try:
         bitfinex_trader = BitfinexTrader()
-        if bitfinex_trader.bfx_client:
-            app.state.trading_client = Trader(bfx_trader=bitfinex_trader)
+        app.state.trading_client = Trader(bfx_trader=bitfinex_trader) if bitfinex_trader.bfx_client else None
+        if app.state.trading_client:
             logger.info("Bitfinex Trader client initialized successfully.")
         else:
-            logger.warning("Bitfinex client could not be initialized (missing API keys?). Trading will be skipped.")
-            app.state.trading_client = None
+            logger.warning("Bitfinex client could not be initialized. Trading will be skipped.")
     except Exception as e:
-        logger.critical(f"Fatal error initializing BitfinexTrader or Trader: {e}", exc_info=True)
+        logger.critical(f"Fatal error initializing BitfinexTrader: {e}", exc_info=True)
         app.state.trading_client = None
 
+    # Initialize AI Agents
+    try:
+        app.state.fed_decision_analyzer = FEDDecisionAnalyzer(expectations_path=EXPECTATIONS_FILE_PATH)
+        logger.info(f"FEDDecisionAnalyzer initialized.")
+    except Exception as e:
+        logger.critical(f"Fatal error initializing FEDDecisionAnalyzer: {e}", exc_info=True)
+        app.state.fed_decision_analyzer = None
+
+    try:
+        app.state.social_media_analyzer = SocialMediaPostAnalyzer()
+        logger.info("SocialMediaPostAnalyzer initialized.")
+    except Exception as e:
+        logger.critical(f"Fatal error initializing SocialMediaPostAnalyzer: {e}", exc_info=True)
+        app.state.social_media_analyzer = None
+
+    # Initialize Trade Decision Manager
     if app.state.trading_client:
         app.state.trade_decision_manager = TradeDecisionManager(
             trader=app.state.trading_client,
@@ -54,15 +74,8 @@ async def lifespan(app: FastAPI):
         )
         logger.info("TradeDecisionManager initialized.")
     else:
-        logger.warning("Trader client not available. TradeDecisionManager will not be functional.")
         app.state.trade_decision_manager = None
-
-    try:
-        app.state.fed_decision_analyzer = FEDDecisionAnalyzer(expectations_path=EXPECTATIONS_FILE_PATH)
-        logger.info(f"FEDDecisionAnalyzer initialized using expectations from: {EXPECTATIONS_FILE_PATH}")
-    except Exception as e:
-        logger.critical(f"Fatal error initializing FEDDecisionAnalyzer: {e}", exc_info=True)
-        app.state.fed_decision_analyzer = None
+        logger.warning("Trader client not available. TradeDecisionManager will not be functional.")
 
     yield
     logger.info(f"aSentrX Trade Decision Engine ({APP_LOGGER_NAME}) has shut down.")
@@ -71,7 +84,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="aSentrX Trade Decision Engine",
     description="Receives external notifications, analyzes content with AI, and executes trades.",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan
 )
 
@@ -83,69 +96,91 @@ async def read_root():
 
 @app.post("/notify/web-monitor", tags=["Notifications"])
 async def handle_web_monitor_notification(request: Request, payload: WebMonitorPayload):
-    logger.info(f"Received web-monitor notification (UUID: {payload.uuid}, URL: {payload.url}).")
+    """
+    Handles notifications from the web monitor client (e.g., FED announcements).
+    """
+    logger.info(f"Received web-monitor notification (UUID: {payload.uuid}).")
 
-    processed_urls: Set[str] = request.app.state.processed_urls
-    url_to_process = payload.url
+    # --- 1. Deduplication ---
+    processed_ids: Set[str] = request.app.state.processed_content_ids
+    if payload.url in processed_ids:
+        logger.warning(f"Skipping already processed URL: {payload.url}")
+        raise HTTPException(status_code=409, detail=f"URL '{payload.url}' already processed.")
+    
+    processed_ids.add(payload.url)
+    logger.debug(f"Added URL to processed set: {payload.url}")
 
-    # Prüfe, ob die URL bereits in unserem Set ist.
-    if url_to_process in processed_urls:
-        logger.warning(
-            f"Skipping request for URL that is already processed or being processed in this session: {url_to_process}"
-        )
-        raise HTTPException(
-            status_code=409,
-            detail=f"URL '{url_to_process}' is already being processed or has been processed in this session."
-        )
+    # --- 2. Routing to FED Decision Analyzer ---
+    analyzer = request.app.state.fed_decision_analyzer
+    if not analyzer:
+        raise HTTPException(status_code=503, detail="FED Decision Analyzer is not available.")
 
-    # Füge die URL SOFORT zum Set hinzu.
-    processed_urls.add(url_to_process)
-    logger.debug(f"Added URL to processed set for this session: {url_to_process}")
+    logger.info(f"Routing UUID {payload.uuid} to FEDDecisionAnalyzer.")
+    analysis_result = await analyzer.analyze_content(payload.content, payload.content_id or payload.uuid)
 
-    try:
-        fed_decision_analyzer = request.app.state.fed_decision_analyzer
-        if not fed_decision_analyzer:
-            raise HTTPException(status_code=503, detail="FED Decision Analyzer is not available.")
+    # --- 3. Process analysis result ---
+    return await _process_analysis_result(request, analysis_result, payload.uuid)
 
-        logger.info(f"Handing off content from UUID {payload.uuid} to FEDDecisionAnalyzer.")
-        fed_analysis_result = await fed_decision_analyzer.analyze_content(
-            content=payload.content,
-            content_id_for_logging=payload.content_id or payload.uuid
-        )
 
-        if isinstance(fed_analysis_result, FailedFEDAnalysis):
-            logger.error(f"FED decision analysis failed for UUID {payload.uuid}: {fed_analysis_result.error_message}")
-            return {"status": "success_analysis_failed", "message": f"URL processed; analysis failed: {fed_analysis_result.error_message}"}
+@app.post("/notify/truth-social", tags=["Notifications"])
+async def handle_truth_social_notification(request: Request, payload: SocialMediaPayload):
+    """
+    Handles notifications from the Truth Social client.
+    """
+    logger.info(f"Received truth-social notification (UUID: {payload.uuid}).")
 
-        if isinstance(fed_analysis_result, IrrelevantFEDContent):
-            logger.info(f"Content from UUID {payload.uuid} analyzed as irrelevant. Reason: {fed_analysis_result.reason}")
-            return {"status": "success_no_action", "message": "URL processed; content analyzed as irrelevant."}
+    # --- 1. Deduplication ---
+    processed_ids: Set[str] = request.app.state.processed_content_ids
+    if payload.content_id in processed_ids:
+        logger.warning(f"Skipping already processed content_id: {payload.content_id}")
+        raise HTTPException(status_code=409, detail=f"Content ID '{payload.content_id}' already processed.")
 
-        trade_decision_manager = request.app.state.trade_decision_manager
-        if not trade_decision_manager:
-            logger.error("Trade Decision Manager not available for actionable event.")
-            return {"status": "success_trade_manager_unavailable", "message": "URL processed; actionable event found, but Trade Manager is unavailable."}
+    processed_ids.add(payload.content_id)
+    logger.debug(f"Added content_id to processed set: {payload.content_id}")
 
-        logger.info(f"Handing off actionable analysis result for UUID {payload.uuid} to TradeDecisionManager.")
-        trade_decision_manager.execute_trade_from_analysis(
-            analysis_result=fed_analysis_result,
-            content_id_for_log=payload.content_id or payload.uuid
-        )
-        return {"status": "success", "message": "Notification processed and trade logic triggered."}
+    # --- 2. Routing to Social Media Analyzer ---
+    analyzer = request.app.state.social_media_analyzer
+    if not analyzer:
+        raise HTTPException(status_code=503, detail="Social Media Analyzer is not available.")
 
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.critical(f"Critical unhandled error during processing for UUID {payload.uuid}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    logger.info(f"Routing UUID {payload.uuid} to SocialMediaPostAnalyzer.")
+    analysis_result = await analyzer.analyze_content(payload.content, payload.content_id)
 
-# --- HIER IST DER FEHLENDE TEIL ---
+    # --- 3. Process analysis result ---
+    return await _process_analysis_result(request, analysis_result, payload.uuid)
+
+
+async def _process_analysis_result(request: Request, analysis_result: AnyAnalysisResult, uuid: str):
+    """
+    Shared logic to handle the result from any AI analyzer.
+    """
+    if isinstance(analysis_result, (FailedFEDAnalysis, FailedSocialMediaAnalysis)):
+        logger.error(f"Analysis failed for UUID {uuid}: {analysis_result.error_message}")
+        # Still return 200 OK as the notification was successfully received and processed.
+        return {"status": "success_analysis_failed", "message": f"Analysis failed: {analysis_result.error_message}"}
+
+    if isinstance(analysis_result, (IrrelevantFEDContent, IrrelevantSocialMediaContent)):
+        logger.info(f"Content from UUID {uuid} analyzed as irrelevant. Reason: {analysis_result.reason}")
+        return {"status": "success_no_action", "message": "Content analyzed as irrelevant."}
+
+    # --- Triggering Trade Logic for Actionable Events ---
+    trade_decision_manager = request.app.state.trade_decision_manager
+    if not trade_decision_manager:
+        logger.error(f"Trade Decision Manager not available for actionable event from UUID {uuid}.")
+        # Return a 200 but indicate that the trade could not be processed.
+        return {"status": "success_trade_manager_unavailable",
+                "message": "Actionable event found, but Trade Manager is unavailable."}
+
+    logger.info(f"Handing off actionable analysis result for UUID {uuid} to TradeDecisionManager.")
+    # This runs in the background and does not block the response.
+    trade_decision_manager.execute_trade_from_analysis(analysis_result, uuid)
+
+    return {"status": "success", "message": "Notification processed and trade logic triggered."}
+
+
+
 if __name__ == "__main__":
-    # Füge das Projektverzeichnis zum sys.path hinzu, um sicherzustellen,
-    # dass 'app' als Modul gefunden wird, wenn man die Datei direkt ausführt.
     if PROJECT_ROOT not in sys.path:
         sys.path.insert(0, PROJECT_ROOT)
-
     logger.info("Starting server directly from main.py")
-    # Der `reload=True` Parameter ist nützlich für die Entwicklung.
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

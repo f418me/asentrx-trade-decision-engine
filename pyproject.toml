@@ -5,6 +5,8 @@ description = ""
 authors = ["Felix Frei <felix.frei@gmx.ch>"]
 license = "MIT"
 readme = "README.md"
+package-mode = false
+
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -33,6 +35,7 @@ pythonpath = [
 ]
 markers = [
     "e2e: marks tests as end-to-end",
+    "live_llm: marks tests that make live calls to an LLM",
 ]
 
 asyncio_mode = "auto"

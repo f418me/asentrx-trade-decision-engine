@@ -1,0 +1,9 @@
+{
+  "uuid": "curl-test-dovish-001",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240501a.htm",
+  "username": "FED",
+  "content-id": "monetary20240501a",
+  "content": "The Federal Reserve today announced a 0.25% reduction in the federal funds rate, noting that inflation pressures have eased and that the labor market continues to adjust gradually.",
+  "ip": "127.0.0.1"
+}

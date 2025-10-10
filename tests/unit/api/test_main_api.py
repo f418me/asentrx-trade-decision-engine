@@ -12,7 +12,7 @@ pytestmark = pytest.mark.unit
 def test_web_monitor_notification_rejects_already_processed_url(mocker):
     """
     Tests that a request is rejected with 409 Conflict if its URL is
-    already in the 'processed_urls' set for the current session.
+    already in the 'processed_content_ids' set for the current session.
     """
     # 1. Arrange
     # Mocken der Abhängigkeiten, die im Lifespan-Manager initialisiert werden.
@@ -34,16 +34,16 @@ def test_web_monitor_notification_rejects_already_processed_url(mocker):
     with TestClient(app) as client:
         # 2. Act: Simuliere den Zustand und sende die Anfrage
         # Füge die URL manuell zum Set hinzu, um eine bereits verarbeitete URL zu simulieren.
-        client.app.state.processed_urls.add(processed_url)
+        client.app.state.processed_content_ids.add(processed_url)
 
         response = client.post("/notify/web-monitor", json=payload)
 
         # 3. Assert: Überprüfe die Ablehnung
         assert response.status_code == 409
-        assert "has been processed in this session" in response.json()['detail']
+        assert "already processed" in response.json()['detail']
 
         # Überprüfe, dass die URL immer noch im Set ist
-        assert processed_url in client.app.state.processed_urls
+        assert processed_url in client.app.state.processed_content_ids
 
 
 def test_web_monitor_notification_success_flow_adds_url_to_set(mocker):
@@ -80,7 +80,7 @@ def test_web_monitor_notification_success_flow_adds_url_to_set(mocker):
     # 2. Act
     with TestClient(app) as client:
         # Stelle sicher, dass das Set zu Beginn leer ist
-        client.app.state.processed_urls.clear()
+        client.app.state.processed_content_ids.clear()
 
         response = client.post("/notify/web-monitor", json=payload)
 
@@ -93,7 +93,7 @@ def test_web_monitor_notification_success_flow_adds_url_to_set(mocker):
     mock_trade_manager_instance.execute_trade_from_analysis.assert_called_once()
 
     # WICHTIG: Überprüfe, ob die URL dem Set hinzugefügt wurde
-    assert unique_url in client.app.state.processed_urls
+    assert unique_url in client.app.state.processed_content_ids
 
 
 def test_web_monitor_notification_analyzer_fails_returns_200(mocker):
@@ -117,13 +117,13 @@ def test_web_monitor_notification_analyzer_fails_returns_200(mocker):
 
     # 2. Act
     with TestClient(app) as client:
-        client.app.state.processed_urls.clear()
+        client.app.state.processed_content_ids.clear()
         response = client.post("/notify/web-monitor", json=payload)
 
     # 3. Assert - Die Logik wurde geändert!
     assert response.status_code == 200
     assert response.json()["status"] == "success_analysis_failed"
-    assert "analysis failed" in response.json()["message"]
+    assert "Analysis failed" in response.json()["message"]
 
     # WICHTIG: Überprüfe, ob die URL trotzdem als verarbeitet markiert wurde
-    assert fail_url in client.app.state.processed_urls
+    assert fail_url in client.app.state.processed_content_ids

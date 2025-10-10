@@ -29,13 +29,13 @@ def decision_manager(mock_trader, mock_sms_notifier):
 @pytest.mark.parametrize("impact, confidence, expected_amount, expected_leverage, description", [
     # Test cases for FED Decision trades
     ("positive", 0.97, AppConfig.ORDER_AMOUNT_FED_BUY_HIGH_CONF, AppConfig.LEVERAGE_FED_BUY_HIGH_CONF,
-     "High-Confidence UP"),
+     "High-Confidence POSITIVE"),
     ("positive", 0.93, AppConfig.ORDER_AMOUNT_FED_BUY_MED_CONF, AppConfig.LEVERAGE_FED_BUY_MED_CONF,
-     "Medium-Confidence UP"),
+     "Medium-Confidence POSITIVE"),
     ("negative", 0.98, AppConfig.ORDER_AMOUNT_FED_SHORT_HIGH_CONF, AppConfig.LEVERAGE_FED_SHORT_HIGH_CONF,
-     "High-Confidence DOWN"),
+     "High-Confidence NEGATIVE"),
     ("negative", 0.94, AppConfig.ORDER_AMOUNT_FED_SHORT_MED_CONF, AppConfig.LEVERAGE_FED_SHORT_MED_CONF,
-     "Medium-Confidence DOWN"),
+     "Medium-Confidence NEGATIVE"),
 ])
 def test_execute_trade_for_fed_decision_triggers_correct_trades(
         decision_manager, mock_trader, mock_sms_notifier, mocker,
