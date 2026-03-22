@@ -1,0 +1,9 @@
+{
+  "uuid": "curl-test-fed-20260318-cut-25bp",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260318a.htm",
+  "username": "FED",
+  "content-id": "monetary20260318a-cut-25bp",
+  "content": "The Federal Open Market Committee decided to lower the target range for the federal funds rate by 0.25 percentage point to 3.25% to 3.50%. The Committee said slower job growth and improving inflation data gave it greater confidence that additional policy restraint was no longer necessary. Officials indicated they are prepared to provide further support if labor market conditions deteriorate.",
+  "ip": "127.0.0.1"
+}

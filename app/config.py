@@ -11,7 +11,7 @@ class AppConfig:
     SENTRY_DSN = os.getenv('SENTRY_DSN')
     LOGFIRE_TOKEN = os.getenv("LOGFIRE_TOKEN")
     LOGFIRE_ENVIRONMENT = os.getenv("LOGFIRE_ENVIRONMENT", "local")
-    MODEL = os.getenv("MODEL", "groq:llama-3.3-70b-versatile")
+    MODEL = os.getenv("MODEL", "openai:gpt-5.4")
 
     # --- Twilio SMS Notifications ---
     SMS_NOTIFICATIONS_ENABLED = os.getenv("SMS_NOTIFICATIONS_ENABLED", "False").lower() == "true"
@@ -38,7 +38,7 @@ class AppConfig:
     LEVERAGE_FED_SHORT_MED_CONF = int(os.getenv("LEVERAGE_FED_SHORT_MED_CONF", "10"))
     
     # --- FED Decision Specific Confidence Thresholds for Trading ---
-    CONFIDENCE_THRESHOLD_FED_HIGH = float(os.getenv("CONFIDENCE_THRESHOLD_FED_HIGH", "0.96"))
+    CONFIDENCE_THRESHOLD_FED_HIGH = float(os.getenv("CONFIDENCE_THRESHOLD_FED_HIGH", "0.95"))
     CONFIDENCE_THRESHOLD_FED_MED = float(os.getenv("CONFIDENCE_THRESHOLD_FED_MED", "0.92"))
 
     # --- Truth Social Generic Order Amounts ---

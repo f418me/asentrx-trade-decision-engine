@@ -1,0 +1,9 @@
+{
+  "uuid": "curl-test-fed-20260318-hawkish-hold",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260318a.htm",
+  "username": "FED",
+  "content-id": "monetary20260318a-hawkish-hold",
+  "content": "The Federal Open Market Committee decided to maintain the target range for the federal funds rate at 3.50% to 3.75%. The Committee noted that inflation remains too elevated and that recent price pressures warrant a restrictive stance for longer. Chair Powell said the Committee is not close to cutting rates and would be prepared to tighten further if inflation fails to resume a clear downward path.",
+  "ip": "127.0.0.1"
+}

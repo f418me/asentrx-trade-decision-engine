@@ -1,6 +1,6 @@
 {
-  "expected_interest_rate_change_type": "decrease",
-  "expected_interest_rate_change_amount": "-25bp",
+  "expected_interest_rate_change_type": "hold",
+  "expected_interest_rate_change_amount": "0bp",
   "expected_narrative": "neutral",
-  "notes": "The U.S. Federal Reserve is most likely to cut interest rates by 25 basis points at its September 17, 2025 FOMC meeting, lowering the target range to 4.00–4.25%. In addition it is a question how the Fed balances transitory inflation concerns against labor market data, with Powell’s tone likely to determine whether the market interprets the move as the start of an easing cycle or a cautious adjustment."
+  "notes": "For the March 17-18, 2026 FOMC meeting, the base-case expectation is that the Federal Reserve leaves the target range unchanged at 3.50%-3.75%. Market pricing and economist commentary point to a hold as the dominant outcome, with the committee likely to keep a cautious, data-dependent tone rather than signal an imminent easing cycle. The main watch items are whether the statement acknowledges softer labor conditions or renewed inflation pressure, which could shift the message modestly dovish or hawkish even if the rate itself is unchanged."
 }

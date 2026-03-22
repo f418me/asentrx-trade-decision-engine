@@ -46,7 +46,7 @@ class SocialMediaAnalysisOutput(BaseModel):
 
 # Agent 1: Topic Classification
 topic_classification_agent = Agent[None, Union[TopicClassification, Failed]](
-    os.getenv("MODEL", "groq:llama-3.3-70b-versatile"),
+    os.getenv("MODEL", "openai:gpt-5.4"),
     output_type=Union[TopicClassification, Failed],
     system_prompt=(
         'Classify this social media post from a major political figure into one of the following categories: '
@@ -62,7 +62,7 @@ topic_classification_agent = Agent[None, Union[TopicClassification, Failed]](
 
 # Agent 2: Market Price Direction (for "market" classification)
 market_price_direction_agent = Agent[None, Union[PriceDirectionPrediction, Failed]](
-    os.getenv("MODEL", "groq:llama-3.3-70b-versatile"),
+    os.getenv("MODEL", "openai:gpt-5.4"),
     output_type=Union[PriceDirectionPrediction, Failed],
     system_prompt=(
         'This social media post has been classified as "market" related. '
@@ -75,7 +75,7 @@ market_price_direction_agent = Agent[None, Union[PriceDirectionPrediction, Faile
 
 # Agent 3: Bitcoin Price Direction (for "bitcoin" classification)
 bitcoin_price_direction_agent = Agent[None, Union[PriceDirectionPrediction, Failed]](
-    os.getenv("MODEL", "groq:llama-3.3-70b-versatile"),
+    os.getenv("MODEL", "openai:gpt-5.4"),
     output_type=Union[PriceDirectionPrediction, Failed],
     system_prompt=(
         'This social media post has been classified as "bitcoin" related. '
@@ -88,7 +88,7 @@ bitcoin_price_direction_agent = Agent[None, Union[PriceDirectionPrediction, Fail
 
 # Agent 4: Tariffs Impact Direction (for "tariffs" classification)
 tariffs_impact_direction_agent = Agent[None, Union[PriceDirectionPrediction, Failed]](
-    os.getenv("MODEL", "groq:llama-3.3-70b-versatile"),
+    os.getenv("MODEL", "openai:gpt-5.4"),
     output_type=Union[PriceDirectionPrediction, Failed],
     system_prompt=(
         'This social media post has been classified as "tariffs" related. '
