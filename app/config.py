@@ -12,6 +12,7 @@ class AppConfig:
     LOGFIRE_TOKEN = os.getenv("LOGFIRE_TOKEN")
     LOGFIRE_ENVIRONMENT = os.getenv("LOGFIRE_ENVIRONMENT", "local")
     MODEL = os.getenv("MODEL", "openai:gpt-5.4")
+    NOTIFY_AUTH_TOKEN = os.getenv("NOTIFY_AUTH_TOKEN", "")
 
     # --- Twilio SMS Notifications ---
     SMS_NOTIFICATIONS_ENABLED = os.getenv("SMS_NOTIFICATIONS_ENABLED", "False").lower() == "true"

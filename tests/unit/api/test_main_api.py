@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.models import FEDDecisionImpact, FailedFEDAnalysis, IrrelevantFEDContent
+from tests.conftest import TEST_NOTIFY_AUTH_HEADERS
 
 # pytest-Markierung, um sicherzustellen, dass alle Tests als Unit-Tests behandelt werden
 pytestmark = pytest.mark.unit
@@ -36,7 +37,7 @@ def test_web_monitor_notification_rejects_already_processed_url(mocker):
         # Füge die URL manuell zum Set hinzu, um eine bereits verarbeitete URL zu simulieren.
         client.app.state.processed_content_ids.add(processed_url)
 
-        response = client.post("/notify/web-monitor", json=payload)
+        response = client.post("/notify/web-monitor", json=payload, headers=TEST_NOTIFY_AUTH_HEADERS)
 
         # 3. Assert: Überprüfe die Ablehnung
         assert response.status_code == 409
@@ -82,7 +83,7 @@ def test_web_monitor_notification_success_flow_adds_url_to_set(mocker):
         # Stelle sicher, dass das Set zu Beginn leer ist
         client.app.state.processed_content_ids.clear()
 
-        response = client.post("/notify/web-monitor", json=payload)
+        response = client.post("/notify/web-monitor", json=payload, headers=TEST_NOTIFY_AUTH_HEADERS)
 
     # 3. Assert
     assert response.status_code == 200
@@ -118,7 +119,7 @@ def test_web_monitor_notification_analyzer_fails_returns_200(mocker):
     # 2. Act
     with TestClient(app) as client:
         client.app.state.processed_content_ids.clear()
-        response = client.post("/notify/web-monitor", json=payload)
+        response = client.post("/notify/web-monitor", json=payload, headers=TEST_NOTIFY_AUTH_HEADERS)
 
     # 3. Assert - Die Logik wurde geändert!
     assert response.status_code == 200
@@ -127,3 +128,51 @@ def test_web_monitor_notification_analyzer_fails_returns_200(mocker):
 
     # WICHTIG: Überprüfe, ob die URL trotzdem als verarbeitet markiert wurde
     assert fail_url in client.app.state.processed_content_ids
+
+
+def test_web_monitor_notification_rejects_missing_auth_token(mocker):
+    mocker.patch('app.main.FEDDecisionAnalyzer')
+    mocker.patch('app.main.TradeDecisionManager')
+    mocker.patch('app.main.SmsNotifier')
+    mocker.patch('app.main.Trader')
+    mocker.patch('app.main.BitfinexTrader')
+
+    payload = {
+        "uuid": "test-uuid-no-auth",
+        "type": "web-monitor",
+        "url": "http://test.com/no-auth",
+        "content": "some content",
+        "ip": "127.0.0.1"
+    }
+
+    with TestClient(app) as client:
+        response = client.post("/notify/web-monitor", json=payload)
+
+    assert response.status_code == 401
+
+
+def test_truth_social_notification_rejects_invalid_auth_token(mocker):
+    mocker.patch('app.main.SocialMediaPostAnalyzer')
+    mocker.patch('app.main.TradeDecisionManager')
+    mocker.patch('app.main.SmsNotifier')
+    mocker.patch('app.main.Trader')
+    mocker.patch('app.main.BitfinexTrader')
+
+    payload = {
+        "uuid": "test-uuid-bad-auth",
+        "type": "truthsocial",
+        "url": "https://truthsocial.com/@realDonaldTrump/1",
+        "username": "realDonaldTrump",
+        "content-id": "1",
+        "content": "some content",
+        "ip": "127.0.0.1"
+    }
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/notify/truth-social",
+            json=payload,
+            headers={"Authorization": "Bearer wrong-token"},
+        )
+
+    assert response.status_code == 401

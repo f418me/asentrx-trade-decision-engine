@@ -3,7 +3,7 @@ import uvicorn
 import os
 import sys
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from typing import Set
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,6 +19,7 @@ from app.models import (
 )
 from app.utils.logger_config import configure_logging, APP_LOGGER_NAME
 from app.utils.observability import logfire_error, logfire_info, logfire_warning
+from app.security import require_notify_auth
 from app.utils.sms_notifier import SmsNotifier
 from app.trading.bitfinex_trader import BitfinexTrader
 from app.trading.trader import Trader
@@ -95,7 +96,7 @@ async def read_root():
     return {"message": "aSentrX Trade Decision Engine is running!"}
 
 
-@app.post("/notify/web-monitor", tags=["Notifications"])
+@app.post("/notify/web-monitor", tags=["Notifications"], dependencies=[Depends(require_notify_auth)])
 async def handle_web_monitor_notification(request: Request, payload: WebMonitorPayload):
     """
     Handles notifications from the web monitor client (e.g., FED announcements).
@@ -137,7 +138,7 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
     return await _process_analysis_result(request, analysis_result, payload.uuid)
 
 
-@app.post("/notify/truth-social", tags=["Notifications"])
+@app.post("/notify/truth-social", tags=["Notifications"], dependencies=[Depends(require_notify_auth)])
 async def handle_truth_social_notification(request: Request, payload: SocialMediaPayload):
     """
     Handles notifications from the Truth Social client.

@@ -6,12 +6,22 @@ import os
 from unittest.mock import MagicMock, AsyncMock
 from contextlib import asynccontextmanager
 
+TEST_NOTIFY_AUTH_TOKEN = "test-notify-token"
+TEST_NOTIFY_AUTH_HEADERS = {"Authorization": f"Bearer {TEST_NOTIFY_AUTH_TOKEN}"}
+
 @pytest.fixture(scope="session", autouse=True)
 def load_test_env():
     """Loads test environment variables for the entire session."""
     env_path = os.path.join(os.path.dirname(__file__), '..', '.env.test')
     if os.path.exists(env_path):
         load_dotenv(dotenv_path=env_path, override=True)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def configure_notify_auth_for_tests(monkeypatch):
+    from app.config import AppConfig
+
+    monkeypatch.setattr(AppConfig, "NOTIFY_AUTH_TOKEN", TEST_NOTIFY_AUTH_TOKEN)
 
 @pytest.fixture(scope="function")
 def test_app_client(mocker):
@@ -45,6 +55,7 @@ def test_app_client(mocker):
     app.router.lifespan_context = mock_lifespan
     
     with TestClient(app) as client:
+        client.headers.update(TEST_NOTIFY_AUTH_HEADERS)
         yield client, {
             "fed_analyzer": mock_fed_analyzer,
             "social_analyzer": mock_social_analyzer,

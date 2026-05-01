@@ -13,6 +13,7 @@ The aSentrX Trade Decision Engine is a FastAPI-based service designed to receive
     -   **FED Decision Agent:** A specialized agent to analyze Federal Reserve announcements, compare them against predefined expectations, and predict the market impact on Bitcoin.
     -   **Social Media Agent:** A strict Truth Social market-signal agent that evaluates whether a post is tradeable, classifies the event type, estimates novelty and time sensitivity, and predicts the short-term Bitcoin direction.
 -   **Source-Based Routing:** Incoming notifications are routed to the correct AI agent based on their `type` (`web-monitor` or `truthsocial`).
+-   **Authenticated Notifications:** Monitor clients must send `Authorization: Bearer <NOTIFY_AUTH_TOKEN>` before any analysis or trade logic runs.
 -   **Configurable Trading Logic:** Centralized and distinct management of trade parameters (amounts, leverage, confidence thresholds) for both FED and Social Media events via environment variables.
 -   **Automated Trading:** Integrates with the Bitfinex API to execute `LIMIT` orders. Features a `PROD_EXECUTION` flag for safe "dry runs".
 -   **Containerized & Reproducible:** Uses **Poetry** for dependency management and **Docker/Docker Compose** for easy, consistent deployment.
@@ -129,6 +130,7 @@ curl -X 'POST' \
   'http://localhost:8000/notify/web-monitor' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer <NOTIFY_AUTH_TOKEN>' \
   -d '{
   "uuid": "curl-test-dovish-001",
   "type": "web-monitor",
@@ -148,6 +150,7 @@ curl -X 'POST' \
   'http://localhost:8000/notify/truth-social' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer <NOTIFY_AUTH_TOKEN>' \
   -d '{
   "uuid": "curl-test-tariffs-001",
   "type": "truthsocial",
