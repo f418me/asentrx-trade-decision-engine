@@ -73,6 +73,14 @@ class AppConfig:
     TS_CONFIDENCE_THRESHOLD_BITCOIN_HIGH = float(os.getenv("TS_CONFIDENCE_THRESHOLD_BITCOIN_HIGH", "0.93"))
     TS_CONFIDENCE_THRESHOLD_BITCOIN_MED = float(os.getenv("TS_CONFIDENCE_THRESHOLD_BITCOIN_MED", "0.88"))
 
+    # --- Truth Social Signal Quality Gates ---
+    TS_MIN_NOVELTY_SCORE = float(os.getenv("TS_MIN_NOVELTY_SCORE", "0.70"))
+    TS_ALLOWED_TIME_SENSITIVITIES = {
+        item.strip().lower()
+        for item in os.getenv("TS_ALLOWED_TIME_SENSITIVITIES", "immediate,same_day").split(",")
+        if item.strip()
+    }
+
     # --- Generic Limit Offsets (can be shared) ---
     LIMIT_OFFSET_BUY = float(os.getenv("LIMIT_OFFSET_BUY", "0.005"))
     LIMIT_OFFSET_SHORT = float(os.getenv("LIMIT_OFFSET_SHORT", "0.005"))

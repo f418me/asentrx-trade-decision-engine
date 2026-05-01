@@ -14,10 +14,11 @@ from app.ai.agents.social_media_agent import SocialMediaPostAnalyzer
 from app.models import (
     WebMonitorPayload, SocialMediaPayload,
     FailedFEDAnalysis, IrrelevantFEDContent, FEDDecisionImpact,
-    FailedSocialMediaAnalysis, IrrelevantSocialMediaContent, SocialMediaAnalysisOutput,
+    FailedSocialMediaAnalysis, IrrelevantSocialMediaContent,
     AnyAnalysisResult
 )
 from app.utils.logger_config import configure_logging, APP_LOGGER_NAME
+from app.utils.observability import logfire_error, logfire_info, logfire_warning
 from app.utils.sms_notifier import SmsNotifier
 from app.trading.bitfinex_trader import BitfinexTrader
 from app.trading.trader import Trader
@@ -100,11 +101,25 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
     Handles notifications from the web monitor client (e.g., FED announcements).
     """
     logger.info(f"Received web-monitor notification (UUID: {payload.uuid}).")
+    logfire_info(
+        "notification_received",
+        source="web-monitor",
+        uuid=payload.uuid,
+        content_id=payload.content_id,
+        url=payload.url,
+    )
 
     # --- 1. Deduplication ---
     processed_ids: Set[str] = request.app.state.processed_content_ids
     if payload.url in processed_ids:
         logger.warning(f"Skipping already processed URL: {payload.url}")
+        logfire_warning(
+            "notification_duplicate",
+            source="web-monitor",
+            uuid=payload.uuid,
+            content_id=payload.content_id,
+            url=payload.url,
+        )
         raise HTTPException(status_code=409, detail=f"URL '{payload.url}' already processed.")
     
     processed_ids.add(payload.url)
@@ -128,11 +143,27 @@ async def handle_truth_social_notification(request: Request, payload: SocialMedi
     Handles notifications from the Truth Social client.
     """
     logger.info(f"Received truth-social notification (UUID: {payload.uuid}).")
+    logfire_info(
+        "notification_received",
+        source="truthsocial",
+        uuid=payload.uuid,
+        content_id=payload.content_id,
+        url=payload.url,
+        username=payload.username,
+    )
 
     # --- 1. Deduplication ---
     processed_ids: Set[str] = request.app.state.processed_content_ids
     if payload.content_id in processed_ids:
         logger.warning(f"Skipping already processed content_id: {payload.content_id}")
+        logfire_warning(
+            "notification_duplicate",
+            source="truthsocial",
+            uuid=payload.uuid,
+            content_id=payload.content_id,
+            url=payload.url,
+            username=payload.username,
+        )
         raise HTTPException(status_code=409, detail=f"Content ID '{payload.content_id}' already processed.")
 
     processed_ids.add(payload.content_id)
@@ -156,22 +187,44 @@ async def _process_analysis_result(request: Request, analysis_result: AnyAnalysi
     """
     if isinstance(analysis_result, (FailedFEDAnalysis, FailedSocialMediaAnalysis)):
         logger.error(f"Analysis failed for UUID {uuid}: {analysis_result.error_message}")
+        logfire_error(
+            "analysis_failed",
+            uuid=uuid,
+            result_type=type(analysis_result).__name__,
+            error_message=analysis_result.error_message,
+        )
         # Still return 200 OK as the notification was successfully received and processed.
         return {"status": "success_analysis_failed", "message": f"Analysis failed: {analysis_result.error_message}"}
 
     if isinstance(analysis_result, (IrrelevantFEDContent, IrrelevantSocialMediaContent)):
         logger.info(f"Content from UUID {uuid} analyzed as irrelevant. Reason: {analysis_result.reason}")
+        logfire_info(
+            "analysis_irrelevant",
+            uuid=uuid,
+            result_type=type(analysis_result).__name__,
+            reason=analysis_result.reason,
+        )
         return {"status": "success_no_action", "message": "Content analyzed as irrelevant."}
 
     # --- Triggering Trade Logic for Actionable Events ---
     trade_decision_manager = request.app.state.trade_decision_manager
     if not trade_decision_manager:
         logger.error(f"Trade Decision Manager not available for actionable event from UUID {uuid}.")
+        logfire_error(
+            "trade_manager_unavailable",
+            uuid=uuid,
+            result_type=type(analysis_result).__name__,
+        )
         # Return a 200 but indicate that the trade could not be processed.
         return {"status": "success_trade_manager_unavailable",
                 "message": "Actionable event found, but Trade Manager is unavailable."}
 
     logger.info(f"Handing off actionable analysis result for UUID {uuid} to TradeDecisionManager.")
+    logfire_info(
+        "analysis_actionable",
+        uuid=uuid,
+        result_type=type(analysis_result).__name__,
+    )
     # This runs in the background and does not block the response.
     trade_decision_manager.execute_trade_from_analysis(analysis_result, uuid)
 

@@ -33,16 +33,31 @@ class SocialMediaPayload(BaseModel):
 
 
 # --- Social Media Analysis Models ---
-class SocialMediaAnalysisOutput(BaseModel):
+class SocialMediaMarketSignal(BaseModel):
     """
-    Represents the final output of the SocialMediaPostAnalyzer pipeline.
+    Represents a strict short-term market signal derived from a social media post.
     """
-    topic_classification: Optional[str] = None
-    topic_confidence: Optional[float] = None
-    topic_reasoning: Optional[str] = None
-    price_direction: Optional[str] = None
-    price_confidence: Optional[float] = None
-    price_reasoning: Optional[str] = None
+    is_tradeable: bool
+    event_type: Literal[
+        "tariff_escalation",
+        "tariff_deescalation",
+        "china_trade_conflict",
+        "fed_pressure",
+        "fiscal_policy",
+        "crypto_policy_positive",
+        "crypto_policy_negative",
+        "geopolitical_risk",
+        "company_specific",
+        "non_tradeable",
+    ]
+    asset: Literal["btc", "broad_market", "usd", "none"]
+    direction: Literal["up", "down", "neutral"]
+    confidence: float
+    novelty_score: float
+    time_sensitivity: Literal["immediate", "same_day", "slow", "none"]
+    risk_level: Literal["low", "medium", "high"]
+    reasoning: str
+    trade_veto_reason: Optional[str] = None
 
 class IrrelevantSocialMediaContent(BaseModel):
     """
@@ -86,7 +101,7 @@ class IrrelevantFEDContent(BaseModel):
 
 # --- Union Types for Analysis Results ---
 FEDAnalysisResult = Union[FEDDecisionImpact, FailedFEDAnalysis, IrrelevantFEDContent]
-SocialMediaAnalysisResult = Union[SocialMediaAnalysisOutput, FailedSocialMediaAnalysis, IrrelevantSocialMediaContent]
+SocialMediaAnalysisResult = Union[SocialMediaMarketSignal, FailedSocialMediaAnalysis, IrrelevantSocialMediaContent]
 
 # A general type for any possible analysis outcome
 AnyAnalysisResult = Union[FEDAnalysisResult, SocialMediaAnalysisResult]

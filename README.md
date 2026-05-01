@@ -11,7 +11,7 @@ The aSentrX Trade Decision Engine is a FastAPI-based service designed to receive
 -   **Modular FastAPI Service:** Built with a clean separation of concerns, making it easy to extend and maintain.
 -   **Dual AI-Powered Analysis Pipelines:**
     -   **FED Decision Agent:** A specialized agent to analyze Federal Reserve announcements, compare them against predefined expectations, and predict the market impact on Bitcoin.
-    -   **Social Media Agent:** A second agent pipeline to analyze social media posts, classify them by topic (market, bitcoin, tariffs), and predict the price direction.
+    -   **Social Media Agent:** A strict Truth Social market-signal agent that evaluates whether a post is tradeable, classifies the event type, estimates novelty and time sensitivity, and predicts the short-term Bitcoin direction.
 -   **Source-Based Routing:** Incoming notifications are routed to the correct AI agent based on their `type` (`web-monitor` or `truthsocial`).
 -   **Configurable Trading Logic:** Centralized and distinct management of trade parameters (amounts, leverage, confidence thresholds) for both FED and Social Media events via environment variables.
 -   **Automated Trading:** Integrates with the Bitfinex API to execute `LIMIT` orders. Features a `PROD_EXECUTION` flag for safe "dry runs".
@@ -118,7 +118,7 @@ poetry run pytest -m live_llm
 
 ## API Usage Examples (cURL)
 
-You can test the primary `/notify` endpoint using `curl`.
+You can test the source-specific notification endpoints using `curl`.
 
 ### Example 1: Simulating a "Dovish" FED Announcement (`web-monitor`)
 
@@ -126,14 +126,14 @@ This payload contains text that should be interpreted by the **FED Decision Agen
 
 ```bash
 curl -X 'POST' \
-  'http://localhost:8000/notify' \
+  'http://localhost:8000/notify/web-monitor' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
   "uuid": "curl-test-dovish-001",
   "type": "web-monitor",
   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240131a.htm",
-  "content_id": "monetary20240131a",
+  "content-id": "monetary20240131a",
   "content": "In a surprising move, the Federal Open Market Committee (FOMC) announced today they will not only hold interest rates steady but also signaled a potential rate cut sooner than anticipated. Chairman Powell mentioned concerns about slowing economic growth, suggesting a more accommodative monetary policy is necessary.",
   "ip": "127.0.0.1"
 }'
@@ -145,14 +145,15 @@ This payload contains text that should be interpreted by the **Social Media Agen
 
 ```bash
 curl -X 'POST' \
-  'http://localhost:8000/notify' \
+  'http://localhost:8000/notify/truth-social' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
   "uuid": "curl-test-tariffs-001",
   "type": "truthsocial",
   "url": "https://truthsocial.com/@user/123",
-  "content_id": "123",
+  "username": "realDonaldTrump",
+  "content-id": "123",
   "content": "The massive tariffs on China are working. Billions are pouring into our treasury. We will be forced to increase them even further if they don't start playing fair. AMERICA FIRST!",
   "ip": "127.0.0.1"
 }'

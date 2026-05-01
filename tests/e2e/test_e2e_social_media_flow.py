@@ -1,7 +1,7 @@
 
 import pytest
 import json
-from app.models import SocialMediaAnalysisOutput
+from app.models import SocialMediaMarketSignal
 
 pytestmark = pytest.mark.e2e
 
@@ -17,8 +17,16 @@ def test_social_media_flow(test_app_client, tariffs_payload):
     client, mocks = test_app_client
     
     # Arrange
-    mocks["social_analyzer"].analyze_content.return_value = SocialMediaAnalysisOutput(
-        price_direction="down", price_confidence=0.96
+    mocks["social_analyzer"].analyze_content.return_value = SocialMediaMarketSignal(
+        is_tradeable=True,
+        event_type="tariff_escalation",
+        asset="broad_market",
+        direction="down",
+        confidence=0.96,
+        novelty_score=0.85,
+        time_sensitivity="immediate",
+        risk_level="high",
+        reasoning="New tariff escalation is risk-off.",
     )
 
     # Act

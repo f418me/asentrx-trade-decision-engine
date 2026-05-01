@@ -28,13 +28,13 @@ def decision_manager(mock_trader, mock_sms_notifier):
 
 @pytest.mark.parametrize("impact, confidence, expected_amount, expected_leverage, description", [
     # Test cases for FED Decision trades
-    ("positive", 0.97, AppConfig.ORDER_AMOUNT_FED_BUY_HIGH_CONF, AppConfig.LEVERAGE_FED_BUY_HIGH_CONF,
+    ("positive", AppConfig.CONFIDENCE_THRESHOLD_FED_HIGH + 0.01, AppConfig.ORDER_AMOUNT_FED_BUY_HIGH_CONF, AppConfig.LEVERAGE_FED_BUY_HIGH_CONF,
      "High-Confidence POSITIVE"),
-    ("positive", 0.93, AppConfig.ORDER_AMOUNT_FED_BUY_MED_CONF, AppConfig.LEVERAGE_FED_BUY_MED_CONF,
+    ("positive", (AppConfig.CONFIDENCE_THRESHOLD_FED_HIGH + AppConfig.CONFIDENCE_THRESHOLD_FED_MED) / 2, AppConfig.ORDER_AMOUNT_FED_BUY_MED_CONF, AppConfig.LEVERAGE_FED_BUY_MED_CONF,
      "Medium-Confidence POSITIVE"),
-    ("negative", 0.98, AppConfig.ORDER_AMOUNT_FED_SHORT_HIGH_CONF, AppConfig.LEVERAGE_FED_SHORT_HIGH_CONF,
+    ("negative", AppConfig.CONFIDENCE_THRESHOLD_FED_HIGH + 0.01, AppConfig.ORDER_AMOUNT_FED_SHORT_HIGH_CONF, AppConfig.LEVERAGE_FED_SHORT_HIGH_CONF,
      "High-Confidence NEGATIVE"),
-    ("negative", 0.94, AppConfig.ORDER_AMOUNT_FED_SHORT_MED_CONF, AppConfig.LEVERAGE_FED_SHORT_MED_CONF,
+    ("negative", (AppConfig.CONFIDENCE_THRESHOLD_FED_HIGH + AppConfig.CONFIDENCE_THRESHOLD_FED_MED) / 2, AppConfig.ORDER_AMOUNT_FED_SHORT_MED_CONF, AppConfig.LEVERAGE_FED_SHORT_MED_CONF,
      "Medium-Confidence NEGATIVE"),
 ])
 def test_execute_trade_for_fed_decision_triggers_correct_trades(
