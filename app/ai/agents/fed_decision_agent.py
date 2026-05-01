@@ -62,8 +62,9 @@ class FEDDecisionAnalyzer:
                 6. Provide `confidence` and `reasoning`
                    - confidence must reflect the clarity of the trading signal, not source credibility
                    - source credibility is already assumed to be high because the text is expected to come from the official Federal Reserve
-                   - confidence should be highest when the rate decision is explicit, the narrative is clear, and the difference versus expectations is unambiguous
-                   - lower confidence when the tone is mixed, the comparison to expectations is subtle, or the Bitcoin impact is not cleanly directional
+                   - confidence should be highest when the actual rate decision itself differs from expectations and the text is explicit
+                   - confidence should usually be in the high-0.80s to low-0.90s when the rate decision matches expectations but the narrative is clearly more dovish or more hawkish than expected
+                   - confidence should be lower when the tone is mixed, the comparison to expectations is subtle, or the Bitcoin impact is not cleanly directional
                    - do not guess missing facts
 
                 Prefer null over guessing when the text is ambiguous.

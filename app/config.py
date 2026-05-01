@@ -38,8 +38,8 @@ class AppConfig:
     LEVERAGE_FED_SHORT_MED_CONF = int(os.getenv("LEVERAGE_FED_SHORT_MED_CONF", "10"))
     
     # --- FED Decision Specific Confidence Thresholds for Trading ---
-    CONFIDENCE_THRESHOLD_FED_HIGH = float(os.getenv("CONFIDENCE_THRESHOLD_FED_HIGH", "0.95"))
-    CONFIDENCE_THRESHOLD_FED_MED = float(os.getenv("CONFIDENCE_THRESHOLD_FED_MED", "0.92"))
+    CONFIDENCE_THRESHOLD_FED_HIGH = float(os.getenv("CONFIDENCE_THRESHOLD_FED_HIGH", "0.90"))
+    CONFIDENCE_THRESHOLD_FED_MED = float(os.getenv("CONFIDENCE_THRESHOLD_FED_MED", "0.85"))
 
     # --- Truth Social Generic Order Amounts ---
     TS_ORDER_AMOUNT_BUY_HIGH_CONF = float(os.getenv("TS_ORDER_AMOUNT_BUY_HIGH_CONF", "0.001"))
