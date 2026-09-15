@@ -35,6 +35,12 @@ def test_app_client(mocker):
     mock_fed_analyzer = MagicMock()
     mock_fed_analyzer.analyze_content = AsyncMock()
     
+    mock_nfp_analyzer = MagicMock()
+    mock_nfp_analyzer.analyze_content = AsyncMock()
+
+    mock_cpi_analyzer = MagicMock()
+    mock_cpi_analyzer.analyze_content = AsyncMock()
+
     mock_social_analyzer = MagicMock()
     mock_social_analyzer.analyze_content = AsyncMock()
 
@@ -45,6 +51,8 @@ def test_app_client(mocker):
     async def mock_lifespan(app):
         # Populate app.state with our mocks
         app.state.fed_decision_analyzer = mock_fed_analyzer
+        app.state.nfp_decision_analyzer = mock_nfp_analyzer
+        app.state.cpi_decision_analyzer = mock_cpi_analyzer
         app.state.social_media_analyzer = mock_social_analyzer
         app.state.trade_decision_manager = mock_trade_manager
         app.state.processed_content_ids = set() # Ensure a clean set for each test
@@ -58,6 +66,8 @@ def test_app_client(mocker):
         client.headers.update(TEST_NOTIFY_AUTH_HEADERS)
         yield client, {
             "fed_analyzer": mock_fed_analyzer,
+            "nfp_analyzer": mock_nfp_analyzer,
+            "cpi_analyzer": mock_cpi_analyzer,
             "social_analyzer": mock_social_analyzer,
             "trade_manager": mock_trade_manager
         }

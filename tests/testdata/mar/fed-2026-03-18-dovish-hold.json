@@ -1,9 +1,0 @@
-{
-  "uuid": "curl-test-fed-20260318-dovish-hold",
-  "type": "web-monitor",
-  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260318a.htm",
-  "username": "FED",
-  "content-id": "monetary20260318a-dovish-hold",
-  "content": "The Federal Open Market Committee decided to maintain the target range for the federal funds rate at 3.50% to 3.75%. Recent indicators suggest labor market conditions have softened and inflation has continued to move closer to 2 percent. The Committee said it would be prepared to reduce rates if economic activity weakens further and signaled that policy no longer needs to remain restrictive for much longer.",
-  "ip": "127.0.0.1"
-}

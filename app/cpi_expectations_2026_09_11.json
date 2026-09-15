@@ -1,0 +1,7 @@
+{
+  "expected_headline_cpi_mom": 0.2,
+  "expected_headline_cpi_yoy": 3.4,
+  "expected_core_cpi_mom": 0.2,
+  "expected_core_cpi_yoy": 2.4,
+  "notes": "Baseline prepared on September 4, 2026 for the U.S. Consumer Price Index release due Friday, September 11, 2026 at 8:30 a.m. ET. This is the final major inflation release before the September 15-16 FOMC meeting. Working baseline: headline CPI around +0.2% m/m and +3.4% y/y; core CPI around +0.2% m/m and +2.4% y/y. Trading interpretation for Bitcoin: a materially cooler report, especially core CPI at or below +0.1% m/m or core y/y below baseline, should generally be Bitcoin-positive because it reduces September hike pressure. A hotter report, especially core CPI at or above +0.3% m/m or core y/y above baseline, should generally be Bitcoin-negative because it revives tightening pressure. Mixed reports should be neutral unless headline and core measures point clearly in the same direction. Core CPI should carry more weight than headline CPI when food or energy explains the surprise."
+}

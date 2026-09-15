@@ -1,9 +1,0 @@
-{
-  "uuid": "curl-test-fed-20260729-hike-25bp",
-  "type": "web-monitor",
-  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260729a.htm",
-  "username": "FED",
-  "content-id": "monetary20260729a-hike-25bp",
-  "content": "The Federal Open Market Committee decided to raise the target range for the federal funds rate by 0.25 percentage point to 3.75% to 4.00%. The Committee said persistent inflation, renewed energy-price pressure, and tariff-related cost risks required additional restraint to keep inflation expectations anchored. Chair Warsh said the Committee was prepared to take further action if inflation fails to move decisively back toward target.",
-  "ip": "127.0.0.1"
-}

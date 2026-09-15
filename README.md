@@ -9,10 +9,12 @@ The aSentrX Trade Decision Engine is a FastAPI-based service designed to receive
 ## Core Features
 
 -   **Modular FastAPI Service:** Built with a clean separation of concerns, making it easy to extend and maintain.
--   **Dual AI-Powered Analysis Pipelines:**
+-   **AI-Powered Analysis Pipelines:**
     -   **FED Decision Agent:** A specialized agent to analyze Federal Reserve announcements, compare them against predefined expectations, and predict the market impact on Bitcoin.
+    -   **NFP Decision Agent:** Analyzes official BLS Employment Situation releases against the current labor-market baseline.
+    -   **CPI Decision Agent:** Analyzes official BLS Consumer Price Index releases against the current inflation baseline, with core CPI weighted most heavily.
     -   **Social Media Agent:** A strict Truth Social market-signal agent that evaluates whether a post is tradeable, classifies the event type, estimates novelty and time sensitivity, and predicts the short-term Bitcoin direction.
--   **Source-Based Routing:** Incoming notifications are routed to the correct AI agent based on their `type` (`web-monitor` or `truthsocial`).
+-   **Source-Based Routing:** Incoming notifications are routed to the correct AI agent based on their `type` (`web-monitor` or `truthsocial`) and macro source (`fed`, `nfp`, or `cpi`).
 -   **Authenticated Notifications:** Monitor clients must send `Authorization: Bearer <NOTIFY_AUTH_TOKEN>` before any analysis or trade logic runs.
 -   **Configurable Trading Logic:** Centralized and distinct management of trade parameters (amounts, leverage, confidence thresholds) for both FED and Social Media events via environment variables.
 -   **Automated Trading:** Integrates with the Bitfinex API to execute `LIMIT` orders. Features a `PROD_EXECUTION` flag for safe "dry runs".
@@ -27,12 +29,16 @@ asentrx-trade-decision-engine/
 │   ├── main.py             # FastAPI entry point & routing logic
 │   ├── config.py           # Centralized configuration from .env
 │   ├── models.py           # Pydantic models for API payloads & AI outputs
-│   ├── expectations.json   # Configurable file for FED expectations
+│   ├── expectations.json       # Configurable file for FED expectations
+│   ├── nfp_expectations.json   # Configurable file for NFP expectations
+│   ├── cpi_expectations.json   # Configurable file for CPI expectations
 │   ├── ai/
 │   │   ├── fed_decision_agent.py
-│   │   └── social_media_agent.py # <-- New Agent
+│   │   ├── nfp_decision_agent.py
+│   │   ├── cpi_decision_agent.py
+│   │   └── social_media_agent.py
 │   ├── trading/
-│   │   └── trade_decision_manager.py # Handles logic for both event types
+│   │   └── trade_decision_manager.py
 ...
 ```
 
@@ -69,7 +75,7 @@ asentrx-trade-decision-engine/
 4.  **Run the application:**
     The application will be served by Uvicorn and accessible at `http://localhost:8000`.
     ```bash
-    poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    poetry run python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload   
     ```
 
 ### Setup and Run (with Docker)

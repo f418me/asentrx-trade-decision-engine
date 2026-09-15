@@ -3,21 +3,16 @@ from unittest.mock import MagicMock, AsyncMock
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models import FEDDecisionImpact, FailedFEDAnalysis, IrrelevantFEDContent
+from app.models import CPIReportImpact, FEDDecisionImpact, FailedFEDAnalysis, NFPReportImpact
 from tests.conftest import TEST_NOTIFY_AUTH_HEADERS
 
-# pytest-Markierung, um sicherzustellen, dass alle Tests als Unit-Tests behandelt werden
 pytestmark = pytest.mark.unit
 
 
 def test_web_monitor_notification_rejects_already_processed_url(mocker):
-    """
-    Tests that a request is rejected with 409 Conflict if its URL is
-    already in the 'processed_content_ids' set for the current session.
-    """
-    # 1. Arrange
-    # Mocken der Abhängigkeiten, die im Lifespan-Manager initialisiert werden.
     mocker.patch('app.main.FEDDecisionAnalyzer')
+    mocker.patch('app.main.NFPDecisionAnalyzer')
+    mocker.patch('app.main.CPIDecisionAnalyzer')
     mocker.patch('app.main.TradeDecisionManager')
     mocker.patch('app.main.SmsNotifier')
     mocker.patch('app.main.Trader')
@@ -29,109 +24,206 @@ def test_web_monitor_notification_rejects_already_processed_url(mocker):
         "type": "web-monitor",
         "url": processed_url,
         "content": "some content",
-        "ip": "127.0.0.1"
+        "ip": "127.0.0.1",
     }
 
     with TestClient(app) as client:
-        # 2. Act: Simuliere den Zustand und sende die Anfrage
-        # Füge die URL manuell zum Set hinzu, um eine bereits verarbeitete URL zu simulieren.
         client.app.state.processed_content_ids.add(processed_url)
-
         response = client.post("/notify/web-monitor", json=payload, headers=TEST_NOTIFY_AUTH_HEADERS)
 
-        # 3. Assert: Überprüfe die Ablehnung
-        assert response.status_code == 409
-        assert "already processed" in response.json()['detail']
-
-        # Überprüfe, dass die URL immer noch im Set ist
-        assert processed_url in client.app.state.processed_content_ids
+    assert response.status_code == 409
+    assert "already processed" in response.json()["detail"]
+    assert processed_url in client.app.state.processed_content_ids
 
 
-def test_web_monitor_notification_success_flow_adds_url_to_set(mocker):
-    """
-    Tests the complete success flow and verifies that the URL is added
-    to the processed set for the session.
-    """
-    # 1. Arrange
+def test_web_monitor_notification_rejects_already_processed_content_id(mocker):
+    mocker.patch('app.main.FEDDecisionAnalyzer')
+    mocker.patch('app.main.NFPDecisionAnalyzer')
+    mocker.patch('app.main.CPIDecisionAnalyzer')
+    mocker.patch('app.main.TradeDecisionManager')
+    mocker.patch('app.main.SmsNotifier')
+    mocker.patch('app.main.Trader')
+    mocker.patch('app.main.BitfinexTrader')
+
+    dedup_key = "bls-empsit-august-2026-released-2026-09-04"
+    payload = {
+        "uuid": "test-uuid-processed-nfp",
+        "type": "web-monitor",
+        "url": "https://www.bls.gov/news.release/empsit.htm",
+        "content-id": dedup_key,
+        "content": "Employment Situation report content",
+        "ip": "127.0.0.1",
+    }
+
+    with TestClient(app) as client:
+        client.app.state.processed_content_ids.add(dedup_key)
+        response = client.post("/notify/web-monitor", json=payload, headers=TEST_NOTIFY_AUTH_HEADERS)
+
+    assert response.status_code == 409
+    assert "already processed" in response.json()["detail"]
+    assert dedup_key in client.app.state.processed_content_ids
+
+
+def test_web_monitor_notification_success_flow_adds_dedup_key_to_set(mocker):
     successful_analysis = FEDDecisionImpact(
         impact_on_bitcoin="positive",
         confidence=0.99,
         reasoning="Mocked positive impact",
-        actual_fed_decision_summary="Mocked summary"
+        actual_fed_decision_summary="Mocked summary",
     )
     mock_analyzer_instance = MagicMock()
     mock_analyzer_instance.analyze_content = AsyncMock(return_value=successful_analysis)
     mocker.patch('app.main.FEDDecisionAnalyzer', return_value=mock_analyzer_instance)
+    mocker.patch('app.main.NFPDecisionAnalyzer')
+    mocker.patch('app.main.CPIDecisionAnalyzer')
     mock_trade_manager_instance = MagicMock()
     mocker.patch('app.main.TradeDecisionManager', return_value=mock_trade_manager_instance)
     mocker.patch('app.main.SmsNotifier')
     mocker.patch('app.main.Trader')
     mocker.patch('app.main.BitfinexTrader')
 
-    unique_url = "http://test.com/unique-url-1"
     payload = {
         "uuid": "test-uuid-123",
         "type": "web-monitor",
-        "url": unique_url,
-        "content-id": "fomc-minutes",
+        "url": "http://test.com/unique-url-1",
+        "content-id": "monetary20260916a",
         "content": "The FED decided to be very positive today.",
-        "ip": "127.0.0.1"
+        "ip": "127.0.0.1",
     }
 
-    # 2. Act
     with TestClient(app) as client:
-        # Stelle sicher, dass das Set zu Beginn leer ist
         client.app.state.processed_content_ids.clear()
-
         response = client.post("/notify/web-monitor", json=payload, headers=TEST_NOTIFY_AUTH_HEADERS)
 
-    # 3. Assert
     assert response.status_code == 200
     assert response.json() == {"status": "success", "message": "Notification processed and trade logic triggered."}
-
-    # Überprüfe, ob die Kernkomponenten aufgerufen wurden
     mock_analyzer_instance.analyze_content.assert_awaited_once()
     mock_trade_manager_instance.execute_trade_from_analysis.assert_called_once()
+    assert payload["content-id"] in client.app.state.processed_content_ids
 
-    # WICHTIG: Überprüfe, ob die URL dem Set hinzugefügt wurde
-    assert unique_url in client.app.state.processed_content_ids
+
+def test_web_monitor_notification_routes_bls_payload_to_nfp_analyzer(mocker):
+    fed_analyzer = MagicMock()
+    fed_analyzer.analyze_content = AsyncMock()
+    nfp_analyzer = MagicMock()
+    nfp_analyzer.analyze_content = AsyncMock(return_value=NFPReportImpact(
+        impact_on_bitcoin="positive",
+        confidence=0.91,
+        reasoning="Softer labor report than expected.",
+        actual_report_summary="Payrolls came in soft with cooler wages.",
+        actual_nonfarm_payrolls_k=5,
+        actual_unemployment_rate=4.3,
+        actual_average_hourly_earnings_mom=0.1,
+        actual_average_hourly_earnings_yoy=3.1,
+    ))
+    trade_manager = MagicMock()
+
+    mocker.patch('app.main.FEDDecisionAnalyzer', return_value=fed_analyzer)
+    mocker.patch('app.main.NFPDecisionAnalyzer', return_value=nfp_analyzer)
+    mocker.patch('app.main.CPIDecisionAnalyzer')
+    mocker.patch('app.main.TradeDecisionManager', return_value=trade_manager)
+    mocker.patch('app.main.SmsNotifier')
+    mocker.patch('app.main.Trader')
+    mocker.patch('app.main.BitfinexTrader')
+
+    payload = {
+        "uuid": "test-uuid-nfp-route",
+        "type": "web-monitor",
+        "url": "https://www.bls.gov/news.release/empsit.htm",
+        "content-id": "bls-empsit-august-2026-released-2026-09-04",
+        "content": "Employment Situation News Release\nTHE EMPLOYMENT SITUATION - AUGUST 2026\nTotal nonfarm payroll employment changed little in August (+5,000), and the unemployment rate was 4.3 percent.",
+        "ip": "127.0.0.1",
+    }
+
+    with TestClient(app) as client:
+        response = client.post("/notify/web-monitor", json=payload, headers=TEST_NOTIFY_AUTH_HEADERS)
+
+    assert response.status_code == 200
+    fed_analyzer.analyze_content.assert_not_awaited()
+    nfp_analyzer.analyze_content.assert_awaited_once()
+    trade_manager.execute_trade_from_analysis.assert_called_once()
+
+
+def test_web_monitor_notification_routes_bls_cpi_payload_to_cpi_analyzer(mocker):
+    fed_analyzer = MagicMock()
+    fed_analyzer.analyze_content = AsyncMock()
+    nfp_analyzer = MagicMock()
+    nfp_analyzer.analyze_content = AsyncMock()
+    cpi_analyzer = MagicMock()
+    cpi_analyzer.analyze_content = AsyncMock(return_value=CPIReportImpact(
+        impact_on_bitcoin="negative",
+        confidence=0.91,
+        reasoning="Core CPI was hotter than expected.",
+        actual_report_summary="Headline and core inflation surprised higher.",
+        actual_headline_cpi_mom=0.3,
+        actual_headline_cpi_yoy=3.5,
+        actual_core_cpi_mom=0.3,
+        actual_core_cpi_yoy=2.5,
+    ))
+    trade_manager = MagicMock()
+
+    mocker.patch('app.main.FEDDecisionAnalyzer', return_value=fed_analyzer)
+    mocker.patch('app.main.NFPDecisionAnalyzer', return_value=nfp_analyzer)
+    mocker.patch('app.main.CPIDecisionAnalyzer', return_value=cpi_analyzer)
+    mocker.patch('app.main.TradeDecisionManager', return_value=trade_manager)
+    mocker.patch('app.main.SmsNotifier')
+    mocker.patch('app.main.Trader')
+    mocker.patch('app.main.BitfinexTrader')
+
+    payload = {
+        "uuid": "test-uuid-cpi-route",
+        "type": "web-monitor",
+        "url": "https://www.bls.gov/news.release/cpi.htm",
+        "content-id": "bls-cpi-august-2026-released-2026-09-11",
+        "content": "Consumer Price Index News Release\nCONSUMER PRICE INDEX - AUGUST 2026\nThe Consumer Price Index for All Urban Consumers rose 0.3 percent in August. The index for all items less food and energy rose 0.3 percent.",
+        "ip": "127.0.0.1",
+    }
+
+    with TestClient(app) as client:
+        response = client.post("/notify/web-monitor", json=payload, headers=TEST_NOTIFY_AUTH_HEADERS)
+
+    assert response.status_code == 200
+    fed_analyzer.analyze_content.assert_not_awaited()
+    nfp_analyzer.analyze_content.assert_not_awaited()
+    cpi_analyzer.analyze_content.assert_awaited_once()
+    trade_manager.execute_trade_from_analysis.assert_called_once()
 
 
 def test_web_monitor_notification_analyzer_fails_returns_200(mocker):
-    """
-    Tests that if the AI analyzer fails, the API returns a 200 OK status
-    (or similar success-like code) and the URL is still marked as processed.
-    """
-    # 1. Arrange
     failed_analysis = FailedFEDAnalysis(error_message="AI failed spectacularly")
     mock_analyzer_instance = MagicMock()
     mock_analyzer_instance.analyze_content = AsyncMock(return_value=failed_analysis)
     mocker.patch('app.main.FEDDecisionAnalyzer', return_value=mock_analyzer_instance)
+    mocker.patch('app.main.NFPDecisionAnalyzer')
+    mocker.patch('app.main.CPIDecisionAnalyzer')
     mocker.patch('app.main.TradeDecisionManager')
     mocker.patch('app.main.SmsNotifier')
     mocker.patch('app.main.Trader')
     mocker.patch('app.main.BitfinexTrader')
 
     fail_url = "http://test.com/unique-url-fail"
-    payload = {"uuid": "test-uuid-fail", "type": "web-monitor", "url": fail_url, "content": "bad content",
-               "ip": "127.0.0.1"}
+    payload = {
+        "uuid": "test-uuid-fail",
+        "type": "web-monitor",
+        "url": fail_url,
+        "content": "bad content",
+        "ip": "127.0.0.1",
+    }
 
-    # 2. Act
     with TestClient(app) as client:
         client.app.state.processed_content_ids.clear()
         response = client.post("/notify/web-monitor", json=payload, headers=TEST_NOTIFY_AUTH_HEADERS)
 
-    # 3. Assert - Die Logik wurde geändert!
     assert response.status_code == 200
     assert response.json()["status"] == "success_analysis_failed"
     assert "Analysis failed" in response.json()["message"]
-
-    # WICHTIG: Überprüfe, ob die URL trotzdem als verarbeitet markiert wurde
     assert fail_url in client.app.state.processed_content_ids
 
 
 def test_web_monitor_notification_rejects_missing_auth_token(mocker):
     mocker.patch('app.main.FEDDecisionAnalyzer')
+    mocker.patch('app.main.NFPDecisionAnalyzer')
+    mocker.patch('app.main.CPIDecisionAnalyzer')
     mocker.patch('app.main.TradeDecisionManager')
     mocker.patch('app.main.SmsNotifier')
     mocker.patch('app.main.Trader')
@@ -142,7 +234,7 @@ def test_web_monitor_notification_rejects_missing_auth_token(mocker):
         "type": "web-monitor",
         "url": "http://test.com/no-auth",
         "content": "some content",
-        "ip": "127.0.0.1"
+        "ip": "127.0.0.1",
     }
 
     with TestClient(app) as client:
@@ -153,6 +245,9 @@ def test_web_monitor_notification_rejects_missing_auth_token(mocker):
 
 def test_truth_social_notification_rejects_invalid_auth_token(mocker):
     mocker.patch('app.main.SocialMediaPostAnalyzer')
+    mocker.patch('app.main.FEDDecisionAnalyzer')
+    mocker.patch('app.main.NFPDecisionAnalyzer')
+    mocker.patch('app.main.CPIDecisionAnalyzer')
     mocker.patch('app.main.TradeDecisionManager')
     mocker.patch('app.main.SmsNotifier')
     mocker.patch('app.main.Trader')
@@ -165,7 +260,7 @@ def test_truth_social_notification_rejects_invalid_auth_token(mocker):
         "username": "realDonaldTrump",
         "content-id": "1",
         "content": "some content",
-        "ip": "127.0.0.1"
+        "ip": "127.0.0.1",
     }
 
     with TestClient(app) as client:

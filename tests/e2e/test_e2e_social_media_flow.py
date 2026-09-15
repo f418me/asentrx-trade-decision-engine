@@ -7,7 +7,7 @@ pytestmark = pytest.mark.e2e
 
 @pytest.fixture
 def tariffs_payload():
-    with open("tests/testdata/ts_tariffs_hawkish.json") as f:
+    with open("tests/testdata/social/ts-tariffs-hawkish.json") as f:
         data = json.load(f)
     if 'content_id' in data:
         data['content-id'] = data.pop('content_id')

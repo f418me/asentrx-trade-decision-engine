@@ -1,0 +1,8 @@
+{
+  "uuid": "curl-test-nfp-20260904-hot-labor-negative",
+  "type": "web-monitor",
+  "url": "https://www.bls.gov/news.release/empsit.htm",
+  "content-id": "bls-empsit-august-2026-released-2026-09-04-hot",
+  "content": "Employment Situation News Release\nTHE EMPLOYMENT SITUATION - AUGUST 2026\nTotal nonfarm payroll employment increased by 140,000 in August, and the unemployment rate edged down to 4.0 percent. Average hourly earnings for all employees on private nonfarm payrolls rose by 0.4 percent over the month and by 3.5 percent over the year. The labor force participation rate was 61.5 percent, and the average workweek held at 34.3 hours.",
+  "ip": "127.0.0.1"
+}

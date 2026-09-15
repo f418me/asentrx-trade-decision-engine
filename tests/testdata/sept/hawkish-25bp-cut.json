@@ -1,9 +1,0 @@
-{
-  "uuid": "curl-test-hawkish-001",
-  "type": "web-monitor",
-  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240501a.htm",
-  "username": "FED",
-  "content-id": "monetary20240501a",
-  "content": "The Federal Reserve today decided to maintain the federal funds rate in its current target range of 4.25% to 4.50%, assessing that current policy remains appropriate to achieve its goals.",
-  "ip": "127.0.0.1"
-}

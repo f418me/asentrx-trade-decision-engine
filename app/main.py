@@ -8,12 +8,18 @@ from typing import Set
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPECTATIONS_FILE_PATH = os.path.join(PROJECT_ROOT, "app", "expectations.json")
+NFP_EXPECTATIONS_FILE_PATH = os.path.join(PROJECT_ROOT, "app", "nfp_expectations.json")
+CPI_EXPECTATIONS_FILE_PATH = os.path.join(PROJECT_ROOT, "app", "cpi_expectations.json")
 
 from app.ai.agents.fed_decision_agent import FEDDecisionAnalyzer
+from app.ai.agents.nfp_decision_agent import NFPDecisionAnalyzer
+from app.ai.agents.cpi_decision_agent import CPIDecisionAnalyzer
 from app.ai.agents.social_media_agent import SocialMediaPostAnalyzer
 from app.models import (
     WebMonitorPayload, SocialMediaPayload,
     FailedFEDAnalysis, IrrelevantFEDContent, FEDDecisionImpact,
+    FailedNFPAnalysis, IrrelevantNFPContent, NFPReportImpact,
+    FailedCPIAnalysis, IrrelevantCPIContent, CPIReportImpact,
     FailedSocialMediaAnalysis, IrrelevantSocialMediaContent,
     AnyAnalysisResult
 )
@@ -31,7 +37,37 @@ except ValueError as e:
     print(f"CRITICAL: Failed to configure logging: {e}. Exiting.")
     exit(1)
 
+
 logger = logging.getLogger(f"{APP_LOGGER_NAME}.main_app")
+
+
+def _get_web_monitor_dedup_key(payload: WebMonitorPayload) -> str:
+    return payload.content_id or payload.url
+
+
+def _detect_web_monitor_source(payload: WebMonitorPayload) -> str:
+    url_lower = payload.url.lower()
+    content_id_lower = (payload.content_id or "").lower()
+    content_lower = payload.content.lower()
+
+    if (
+        "/cpi" in url_lower
+        or content_id_lower.startswith("bls-cpi-")
+        or "consumer price index" in content_lower
+        or "cpi for all urban consumers" in content_lower
+        or "cpi-u" in content_lower
+    ):
+        return "cpi"
+
+    if (
+        "empsit" in url_lower
+        or content_id_lower.startswith("bls-empsit-")
+        or "employment situation" in content_lower
+        or "nonfarm payroll" in content_lower
+    ):
+        return "nfp"
+
+    return "fed"
 
 
 @asynccontextmanager
@@ -60,6 +96,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.critical(f"Fatal error initializing FEDDecisionAnalyzer: {e}", exc_info=True)
         app.state.fed_decision_analyzer = None
+
+    try:
+        app.state.nfp_decision_analyzer = NFPDecisionAnalyzer(expectations_path=NFP_EXPECTATIONS_FILE_PATH)
+        logger.info("NFPDecisionAnalyzer initialized.")
+    except Exception as e:
+        logger.critical(f"Fatal error initializing NFPDecisionAnalyzer: {e}", exc_info=True)
+        app.state.nfp_decision_analyzer = None
+
+    try:
+        app.state.cpi_decision_analyzer = CPIDecisionAnalyzer(expectations_path=CPI_EXPECTATIONS_FILE_PATH)
+        logger.info("CPIDecisionAnalyzer initialized.")
+    except Exception as e:
+        logger.critical(f"Fatal error initializing CPIDecisionAnalyzer: {e}", exc_info=True)
+        app.state.cpi_decision_analyzer = None
 
     try:
         app.state.social_media_analyzer = SocialMediaPostAnalyzer()
@@ -112,8 +162,9 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
 
     # --- 1. Deduplication ---
     processed_ids: Set[str] = request.app.state.processed_content_ids
-    if payload.url in processed_ids:
-        logger.warning(f"Skipping already processed URL: {payload.url}")
+    dedup_key = _get_web_monitor_dedup_key(payload)
+    if dedup_key in processed_ids:
+        logger.warning(f"Skipping already processed web-monitor key: {dedup_key}")
         logfire_warning(
             "notification_duplicate",
             source="web-monitor",
@@ -121,17 +172,30 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
             content_id=payload.content_id,
             url=payload.url,
         )
-        raise HTTPException(status_code=409, detail=f"URL '{payload.url}' already processed.")
-    
-    processed_ids.add(payload.url)
-    logger.debug(f"Added URL to processed set: {payload.url}")
+        raise HTTPException(status_code=409, detail=f"Content key '{dedup_key}' already processed.")
 
-    # --- 2. Routing to FED Decision Analyzer ---
-    analyzer = request.app.state.fed_decision_analyzer
+    processed_ids.add(dedup_key)
+    logger.debug(f"Added web-monitor key to processed set: {dedup_key}")
+
+    # --- 2. Routing to the appropriate macro analyzer ---
+    source_kind = _detect_web_monitor_source(payload)
+    if source_kind == "nfp":
+        analyzer = request.app.state.nfp_decision_analyzer
+        analyzer_name = "NFPDecisionAnalyzer"
+        unavailable_detail = "NFP Decision Analyzer is not available."
+    elif source_kind == "cpi":
+        analyzer = request.app.state.cpi_decision_analyzer
+        analyzer_name = "CPIDecisionAnalyzer"
+        unavailable_detail = "CPI Decision Analyzer is not available."
+    else:
+        analyzer = request.app.state.fed_decision_analyzer
+        analyzer_name = "FEDDecisionAnalyzer"
+        unavailable_detail = "FED Decision Analyzer is not available."
+
     if not analyzer:
-        raise HTTPException(status_code=503, detail="FED Decision Analyzer is not available.")
+        raise HTTPException(status_code=503, detail=unavailable_detail)
 
-    logger.info(f"Routing UUID {payload.uuid} to FEDDecisionAnalyzer.")
+    logger.info(f"Routing UUID {payload.uuid} to {analyzer_name}.")
     analysis_result = await analyzer.analyze_content(payload.content, payload.content_id or payload.uuid)
 
     # --- 3. Process analysis result ---
@@ -186,7 +250,7 @@ async def _process_analysis_result(request: Request, analysis_result: AnyAnalysi
     """
     Shared logic to handle the result from any AI analyzer.
     """
-    if isinstance(analysis_result, (FailedFEDAnalysis, FailedSocialMediaAnalysis)):
+    if isinstance(analysis_result, (FailedFEDAnalysis, FailedNFPAnalysis, FailedCPIAnalysis, FailedSocialMediaAnalysis)):
         logger.error(f"Analysis failed for UUID {uuid}: {analysis_result.error_message}")
         logfire_error(
             "analysis_failed",
@@ -197,7 +261,7 @@ async def _process_analysis_result(request: Request, analysis_result: AnyAnalysi
         # Still return 200 OK as the notification was successfully received and processed.
         return {"status": "success_analysis_failed", "message": f"Analysis failed: {analysis_result.error_message}"}
 
-    if isinstance(analysis_result, (IrrelevantFEDContent, IrrelevantSocialMediaContent)):
+    if isinstance(analysis_result, (IrrelevantFEDContent, IrrelevantNFPContent, IrrelevantCPIContent, IrrelevantSocialMediaContent)):
         logger.info(f"Content from UUID {uuid} analyzed as irrelevant. Reason: {analysis_result.reason}")
         logfire_info(
             "analysis_irrelevant",

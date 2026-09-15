@@ -7,7 +7,7 @@ import uuid
 # --- Incoming Payload Models ---
 class WebMonitorPayload(BaseModel):
     """
-    Pydantic model for data from the web monitor client (e.g., FED announcements).
+    Pydantic model for data from the web monitor client (e.g., macro announcements).
     """
     uuid: str = Field(default_factory=lambda: str(uuid.uuid4()))
     type: Literal["web-monitor"] = "web-monitor"
@@ -99,9 +99,80 @@ class IrrelevantFEDContent(BaseModel):
     reason: str
 
 
+
+
+
+# --- NFP / Employment Situation Analysis Models ---
+class NFPExpectation(BaseModel):
+    """Model for expected U.S. labor-market data, loaded from a file."""
+    expected_nonfarm_payrolls_k: int
+    expected_unemployment_rate: float
+    expected_average_hourly_earnings_mom: float
+    expected_average_hourly_earnings_yoy: Optional[float] = None
+    expected_participation_rate: Optional[float] = None
+    expected_average_weekly_hours: Optional[float] = None
+    notes: Optional[str] = None
+
+class NFPReportImpact(BaseModel):
+    """Output model for the Employment Situation / NFP analysis agent."""
+    impact_on_bitcoin: Literal["positive", "negative", "neutral"]
+    confidence: float
+    reasoning: str
+    actual_report_summary: str
+    actual_nonfarm_payrolls_k: Optional[int] = None
+    actual_unemployment_rate: Optional[float] = None
+    actual_average_hourly_earnings_mom: Optional[float] = None
+    actual_average_hourly_earnings_yoy: Optional[float] = None
+    actual_participation_rate: Optional[float] = None
+    actual_average_weekly_hours: Optional[float] = None
+
+class FailedNFPAnalysis(BaseModel):
+    """Indicates that the Employment Situation / NFP analysis failed."""
+    error_message: str
+
+class IrrelevantNFPContent(BaseModel):
+    """
+    Indicates that the provided content is not relevant to a newly released U.S. jobs report.
+    """
+    reason: str
+
+
+# --- CPI / Consumer Price Index Analysis Models ---
+class CPIExpectation(BaseModel):
+    """Model for expected U.S. CPI data, loaded from a file."""
+    expected_headline_cpi_mom: float
+    expected_headline_cpi_yoy: float
+    expected_core_cpi_mom: float
+    expected_core_cpi_yoy: float
+    notes: Optional[str] = None
+
+class CPIReportImpact(BaseModel):
+    """Output model for the Consumer Price Index analysis agent."""
+    impact_on_bitcoin: Literal["positive", "negative", "neutral"]
+    confidence: float
+    reasoning: str
+    actual_report_summary: str
+    actual_headline_cpi_mom: Optional[float] = None
+    actual_headline_cpi_yoy: Optional[float] = None
+    actual_core_cpi_mom: Optional[float] = None
+    actual_core_cpi_yoy: Optional[float] = None
+
+class FailedCPIAnalysis(BaseModel):
+    """Indicates that the CPI analysis failed."""
+    error_message: str
+
+class IrrelevantCPIContent(BaseModel):
+    """
+    Indicates that the provided content is not relevant to a newly released U.S. CPI report.
+    """
+    reason: str
+
+
 # --- Union Types for Analysis Results ---
 FEDAnalysisResult = Union[FEDDecisionImpact, FailedFEDAnalysis, IrrelevantFEDContent]
+NFPAnalysisResult = Union[NFPReportImpact, FailedNFPAnalysis, IrrelevantNFPContent]
+CPIAnalysisResult = Union[CPIReportImpact, FailedCPIAnalysis, IrrelevantCPIContent]
 SocialMediaAnalysisResult = Union[SocialMediaMarketSignal, FailedSocialMediaAnalysis, IrrelevantSocialMediaContent]
 
 # A general type for any possible analysis outcome
-AnyAnalysisResult = Union[FEDAnalysisResult, SocialMediaAnalysisResult]
+AnyAnalysisResult = Union[FEDAnalysisResult, NFPAnalysisResult, CPIAnalysisResult, SocialMediaAnalysisResult]

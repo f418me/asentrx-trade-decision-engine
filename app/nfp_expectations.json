@@ -1,0 +1,9 @@
+{
+  "expected_nonfarm_payrolls_k": 55,
+  "expected_unemployment_rate": 4.2,
+  "expected_average_hourly_earnings_mom": 0.2,
+  "expected_average_hourly_earnings_yoy": 3.3,
+  "expected_participation_rate": 61.4,
+  "expected_average_weekly_hours": 34.3,
+  "notes": "Baseline refreshed on September 4, 2026 for the U.S. Employment Situation release due Friday, September 4, 2026 at 8:30 a.m. ET. This is the final major labor-market release before the September 15-16 FOMC meeting, where market pricing is roughly split between a hold and a 25bp hike. Current previews point to a still-soft but not clearly recessionary labor market after July payrolls fell by 23k and prior months were revised lower. Treat the working consensus as roughly +55k nonfarm payrolls, with a plausible published-consensus range around +53k to +65k; unemployment is expected around 4.1%-4.2%, with this baseline using 4.2%; average hourly earnings are expected around +0.2% m/m, with y/y wage estimates less uniform but generally near 3.0%-3.3%; participation is expected near 61.4% and average weekly hours near 34.3. Trading interpretation: a materially soft report, especially payrolls below roughly +25k or negative, unemployment at or above 4.3%, and wages at or below +0.1% m/m, should generally be Bitcoin-positive because it lowers September hike odds. A hot report, especially payrolls above roughly +100k, unemployment at or below 4.0%-4.1%, and wages at or above +0.3% m/m, should generally be Bitcoin-negative because it revives hike pressure. Mixed reports should be neutral unless payrolls, unemployment, and wages point clearly in the same direction."
+}

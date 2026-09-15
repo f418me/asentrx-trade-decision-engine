@@ -1,6 +1,6 @@
 
 import logging
-from app.models import FEDDecisionImpact, SocialMediaMarketSignal, AnyAnalysisResult
+from app.models import CPIReportImpact, FEDDecisionImpact, NFPReportImpact, SocialMediaMarketSignal, AnyAnalysisResult
 from app.config import AppConfig
 from app.trading.trader import Trader
 from app.utils.sms_notifier import SmsNotifier
@@ -125,14 +125,46 @@ class TradeDecisionManager:
 
         if direction == "positive":
             if confidence >= conf_high:
-                return {"amount": AppConfig.ORDER_AMOUNT_FED_BUY_HIGH_CONF, "leverage": AppConfig.LEVERAGE_FED_BUY_HIGH_CONF, "desc": "High-Confidence POSITIVE"}
+                return {"amount": AppConfig.ORDER_AMOUNT_FED_BUY_HIGH_CONF, "leverage": AppConfig.LEVERAGE_FED_BUY_HIGH_CONF, "desc": "High-Confidence FED POSITIVE"}
             if confidence >= conf_med:
-                return {"amount": AppConfig.ORDER_AMOUNT_FED_BUY_MED_CONF, "leverage": AppConfig.LEVERAGE_FED_BUY_MED_CONF, "desc": "Medium-Confidence POSITIVE"}
+                return {"amount": AppConfig.ORDER_AMOUNT_FED_BUY_MED_CONF, "leverage": AppConfig.LEVERAGE_FED_BUY_MED_CONF, "desc": "Medium-Confidence FED POSITIVE"}
         elif direction == "negative":
             if confidence >= conf_high:
-                return {"amount": AppConfig.ORDER_AMOUNT_FED_SHORT_HIGH_CONF, "leverage": AppConfig.LEVERAGE_FED_SHORT_HIGH_CONF, "desc": "High-Confidence NEGATIVE"}
+                return {"amount": AppConfig.ORDER_AMOUNT_FED_SHORT_HIGH_CONF, "leverage": AppConfig.LEVERAGE_FED_SHORT_HIGH_CONF, "desc": "High-Confidence FED NEGATIVE"}
             if confidence >= conf_med:
-                return {"amount": AppConfig.ORDER_AMOUNT_FED_SHORT_MED_CONF, "leverage": AppConfig.LEVERAGE_FED_SHORT_MED_CONF, "desc": "Medium-Confidence NEGATIVE"}
+                return {"amount": AppConfig.ORDER_AMOUNT_FED_SHORT_MED_CONF, "leverage": AppConfig.LEVERAGE_FED_SHORT_MED_CONF, "desc": "Medium-Confidence FED NEGATIVE"}
+        return None
+
+    def _get_nfp_trade_params(self, direction: str, confidence: float) -> dict | None:
+        conf_high = AppConfig.CONFIDENCE_THRESHOLD_FED_HIGH
+        conf_med = AppConfig.CONFIDENCE_THRESHOLD_FED_MED
+
+        if direction == "positive":
+            if confidence >= conf_high:
+                return {"amount": AppConfig.ORDER_AMOUNT_FED_BUY_HIGH_CONF, "leverage": AppConfig.LEVERAGE_FED_BUY_HIGH_CONF, "desc": "High-Confidence NFP POSITIVE"}
+            if confidence >= conf_med:
+                return {"amount": AppConfig.ORDER_AMOUNT_FED_BUY_MED_CONF, "leverage": AppConfig.LEVERAGE_FED_BUY_MED_CONF, "desc": "Medium-Confidence NFP POSITIVE"}
+        elif direction == "negative":
+            if confidence >= conf_high:
+                return {"amount": AppConfig.ORDER_AMOUNT_FED_SHORT_HIGH_CONF, "leverage": AppConfig.LEVERAGE_FED_SHORT_HIGH_CONF, "desc": "High-Confidence NFP NEGATIVE"}
+            if confidence >= conf_med:
+                return {"amount": AppConfig.ORDER_AMOUNT_FED_SHORT_MED_CONF, "leverage": AppConfig.LEVERAGE_FED_SHORT_MED_CONF, "desc": "Medium-Confidence NFP NEGATIVE"}
+        return None
+
+    def _get_cpi_trade_params(self, direction: str, confidence: float) -> dict | None:
+        conf_high = AppConfig.CONFIDENCE_THRESHOLD_FED_HIGH
+        conf_med = AppConfig.CONFIDENCE_THRESHOLD_FED_MED
+
+        if direction == "positive":
+            if confidence >= conf_high:
+                return {"amount": AppConfig.ORDER_AMOUNT_FED_BUY_HIGH_CONF, "leverage": AppConfig.LEVERAGE_FED_BUY_HIGH_CONF, "desc": "High-Confidence CPI POSITIVE"}
+            if confidence >= conf_med:
+                return {"amount": AppConfig.ORDER_AMOUNT_FED_BUY_MED_CONF, "leverage": AppConfig.LEVERAGE_FED_BUY_MED_CONF, "desc": "Medium-Confidence CPI POSITIVE"}
+        elif direction == "negative":
+            if confidence >= conf_high:
+                return {"amount": AppConfig.ORDER_AMOUNT_FED_SHORT_HIGH_CONF, "leverage": AppConfig.LEVERAGE_FED_SHORT_HIGH_CONF, "desc": "High-Confidence CPI NEGATIVE"}
+            if confidence >= conf_med:
+                return {"amount": AppConfig.ORDER_AMOUNT_FED_SHORT_MED_CONF, "leverage": AppConfig.LEVERAGE_FED_SHORT_MED_CONF, "desc": "Medium-Confidence CPI NEGATIVE"}
         return None
 
     def execute_trade_from_analysis(self, result: AnyAnalysisResult, content_id: str):
@@ -152,6 +184,32 @@ class TradeDecisionManager:
                 actual_interest_rate_change_type=result.actual_interest_rate_change_type,
                 actual_interest_rate_change_amount=result.actual_interest_rate_change_amount,
                 actual_narrative=result.actual_narrative,
+            )
+
+        elif isinstance(result, NFPReportImpact):
+            trade_params = self._get_nfp_trade_params(result.impact_on_bitcoin, result.confidence)
+            logfire_info(
+                "nfp_trade_signal_evaluated",
+                content_id=content_id,
+                impact_on_bitcoin=result.impact_on_bitcoin,
+                confidence=result.confidence,
+                actual_nonfarm_payrolls_k=result.actual_nonfarm_payrolls_k,
+                actual_unemployment_rate=result.actual_unemployment_rate,
+                actual_average_hourly_earnings_mom=result.actual_average_hourly_earnings_mom,
+                actual_average_hourly_earnings_yoy=result.actual_average_hourly_earnings_yoy,
+            )
+
+        elif isinstance(result, CPIReportImpact):
+            trade_params = self._get_cpi_trade_params(result.impact_on_bitcoin, result.confidence)
+            logfire_info(
+                "cpi_trade_signal_evaluated",
+                content_id=content_id,
+                impact_on_bitcoin=result.impact_on_bitcoin,
+                confidence=result.confidence,
+                actual_headline_cpi_mom=result.actual_headline_cpi_mom,
+                actual_headline_cpi_yoy=result.actual_headline_cpi_yoy,
+                actual_core_cpi_mom=result.actual_core_cpi_mom,
+                actual_core_cpi_yoy=result.actual_core_cpi_yoy,
             )
 
         else:
