@@ -1,4 +1,8 @@
 # flyctl launch added from .gitignore
+**/.venv
+**/__pycache__
+**/.env.*
+.git
 **/venv
 **/.env
 tests/e2e/.env.test

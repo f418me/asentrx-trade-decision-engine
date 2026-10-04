@@ -1,18 +1,17 @@
-# September 16, 2026 FOMC Manual Test Payloads
+# September 16, 2026 FOMC Test Payloads
 
-These payloads are designed for the current September 2026 FOMC baseline:
+These synthetic payloads use a frozen September 2026 test baseline. They are not current market expectations or evidence of actual market outcomes:
 
 - Expected decision: `+25bp`
 - Expected target range after decision: `3.75%-4.00%`
 - Expected narrative: `hawkish`
-- Market-implied confidence: high, roughly mid-80s to mid-90s percent probability for `+25bp`
 
-Because a normal hawkish `+25bp` hike is now a high-confidence baseline, it should usually be neutral unless the statement is more hawkish than expected.
+A hawkish `+25bp` hike with guidance matching this baseline is classified as in line. The policy returns neutral when required field confidence is sufficient, or abstains when it is below the configured threshold. Both mean no trade.
 
 ## Payloads
 
 - `fomc-2026-09-16-expected-25bp-hawkish-neutral.json`
-  Expected interpretation: broadly in line with baseline, likely neutral/no trade.
+  Expected classification: fresh release, +25bp, hawkish, guidance in line. Acceptable policy result: neutral or abstention caused by valid confidence below threshold; no trade.
 
 - `fomc-2026-09-16-surprise-hold-dovish-positive.json`
   Expected interpretation: materially less hawkish than a strongly priced baseline, likely BTC-positive.
@@ -24,11 +23,21 @@ Because a normal hawkish `+25bp` hike is now a high-confidence baseline, it shou
   Expected interpretation: rate hike matches baseline but statement is meaningfully dovish/one-and-done, likely BTC-positive or at least less bearish because forward guidance is less hawkish than expected.
 
 - `fomc-2026-09-16-preview-irrelevant.json`
-  Expected interpretation: preview only, no official decision, irrelevant/no trade.
+  Expected interpretation: preview only, no official decision, abstention/no trade.
+
+## Live Jev Regression Tests
+
+From the engine directory, with `TYPESAFE_API_KEY` configured:
+
+```bash
+uv run --locked pytest tests/integration/test_jev_live.py -m live_jev -v
+```
+
+These tests use the configured model (default `typesafe:jev-1.13.0`) and construct no trader. The baseline is frozen inside the test, independently of production baseline updates. The expected-hike test checks Jev's classification separately; wrong classifications, missing confidence and provider errors still fail. Directional cases must produce their expected direction.
 
 ## Local Usage
 
-Start the engine locally, then run:
+For manual payload tests, start the engine with `PROD_EXECUTION=False`, then run:
 
 ```bash
 NOTIFY_AUTH_TOKEN=<same token as engine NOTIFY_AUTH_TOKEN> \

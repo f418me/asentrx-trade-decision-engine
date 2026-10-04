@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
 
     # Lädt Umgebungsvariablen aus einer .env-Datei.
-    # Erstelle eine .env-Datei basierend auf .env.example mit deinen Produktionswerten.
+    # Erstelle eine .env-Datei basierend auf .env-example mit deinen Produktionswerten.
     env_file:
       - .env
 

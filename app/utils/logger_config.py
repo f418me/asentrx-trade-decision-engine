@@ -2,6 +2,7 @@ import os
 import logfire
 import logging
 import sentry_sdk
+from pydantic_ai import Agent
 
 LOG_LEVEL_CONSOLE_STR_ENV = os.getenv("LOG_LEVEL_CONSOLE", "INFO") # Default to INFO for console
 
@@ -99,7 +100,8 @@ def configure_logging():
 
     if logfire_token:
         logfire.configure(token=logfire_token, environment=logfire_env)
-        logfire.instrument_pydantic_ai()
+        # Pydantic AI uses the global OpenTelemetry providers configured by Logfire.
+        Agent.instrument_all()
 
     else:
         # Log a warning if Logfire token is not found, so it's clear it's not active.
