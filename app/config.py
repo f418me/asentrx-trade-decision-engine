@@ -11,7 +11,9 @@ class AppConfig:
     SENTRY_DSN = os.getenv('SENTRY_DSN')
     LOGFIRE_TOKEN = os.getenv("LOGFIRE_TOKEN")
     LOGFIRE_ENVIRONMENT = os.getenv("LOGFIRE_ENVIRONMENT", "local")
-    MODEL = os.getenv("MODEL", "openai:gpt-5.4")
+    JEV_MODEL = os.getenv("JEV_MODEL", "typesafe:jev-1.13.0")
+    JEV_CONFIDENCE_THRESHOLD = float(os.getenv("JEV_CONFIDENCE_THRESHOLD", "0.85"))
+    JEV_TIMEOUT_SECONDS = float(os.getenv("JEV_TIMEOUT_SECONDS", "10"))
     NOTIFY_AUTH_TOKEN = os.getenv("NOTIFY_AUTH_TOKEN", "")
 
     # --- Twilio SMS Notifications ---

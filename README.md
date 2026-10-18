@@ -4,21 +4,36 @@
 
 # aSentrX Trade Decision Engine
 
-The aSentrX Trade Decision Engine is a FastAPI-based service designed to receive notifications from external monitoring clients. It analyzes the incoming content using specialized AI agents and triggers automated trading actions on the Bitfinex exchange based on the analysis.
+The aSentrX Trade Decision Engine receives monitor notifications, asks Jev typed questions in one API request, and applies local Python policies before the existing Bitfinex trade gates. All schemas, policies and tests live in this repository. There is no LLM fallback or dependency on an evaluation repository.
+
+## Jev Configuration and Policy
+
+Set `TYPESAFE_API_KEY`, `JEV_MODEL=typesafe:jev-1.13.0`, `JEV_CONFIDENCE_THRESHOLD=0.85` and `JEV_TIMEOUT_SECONDS=10` in `.env` or Fly secrets. The model is pinned to the version used in the live FOMC tests; evaluate future versions before changing it. The old `MODEL` and other model-provider keys are no longer used. Keep `PROD_EXECUTION=False` for initial evaluation.
+
+Each analysis has one output schema and no tools or fallback. All questions are sent together. An overall timeout and zero agent retries bound waiting; timeout or provider failure produces `success_analysis_failed` without a trade. Unknown answers or missing, invalid or low confidence produce `success_no_action` without invoking the trader.
+
+- **FOMC:** An explicit fresh rate decision is required. Signed rate surprise versus the baseline takes precedence over guidance. When rates match, more dovish guidance is positive, more hawkish guidance negative, and in-line/mixed guidance neutral. Missing guidance prevents a decision only when rates match.
+- **CPI:** Jev compares headline/core monthly and annual readings to the baseline. A difference of at least 0.1 percentage point counts as a surprise. A core surprise is required for direction; conflicting readings are neutral. Missing readings abstain.
+- **NFP:** Payroll surprises require at least 30k difference; unemployment and monthly wages require 0.1 percentage point. Soft payrolls and wages with unemployment at/above baseline are positive; the reverse is negative. Conflicts or a growth scare are neutral; unknown inputs abstain.
+- **Truth Social:** Jev classifies the catalyst, concrete new action, transmission and timing. Python maps risk-on/off to up/down, vetoes contradictions, and retains the existing timing and sizing gates. `novelty_score` is now binary (1 for supported new action, otherwise 0). This is a text judgment, not verification against market history or prior posts.
+
+`confidence` is the minimum provider confidence of the fields needed by the policy, including release relevance. It is **not** an estimated probability of a profitable trade and is not calibrated to the former LLM confidence. Existing trade thresholds, amounts and leverage remain configured separately; re-evaluate them on held-out releases before live use. CPI/NFP numeric `actual_*` fields remain null because these schemas classify comparisons rather than extract arbitrary numbers.
+
+Console logs and Logfire's `jev_analysis_completed` include content ID/hash, exact baseline, model, policy version, judgments, provider confidence, decision and elapsed milliseconds. `jev_analysis_failed` records failures and elapsed time. No extra model call generates explanations. Actual end-to-end latency still includes the monitor, network and exchange; measure it in dry runs.
 
 ## Core Features
 
 -   **Modular FastAPI Service:** Built with a clean separation of concerns, making it easy to extend and maintain.
--   **AI-Powered Analysis Pipelines:**
-    -   **FED Decision Agent:** A specialized agent to analyze Federal Reserve announcements, compare them against predefined expectations, and predict the market impact on Bitcoin.
+-   **Jev Analysis and Python Policies:**
+    -   **FED Decision Agent:** Jev identifies the announced rate change and guidance; Python compares them against the baseline to determine the Bitcoin signal.
     -   **NFP Decision Agent:** Analyzes official BLS Employment Situation releases against the current labor-market baseline.
     -   **CPI Decision Agent:** Analyzes official BLS Consumer Price Index releases against the current inflation baseline, with core CPI weighted most heavily.
-    -   **Social Media Agent:** A strict Truth Social market-signal agent that evaluates whether a post is tradeable, classifies the event type, estimates novelty and time sensitivity, and predicts the short-term Bitcoin direction.
--   **Source-Based Routing:** Incoming notifications are routed to the correct AI agent based on their `type` (`web-monitor` or `truthsocial`) and macro source (`fed`, `nfp`, or `cpi`).
+    -   **Social Media Agent:** Jev classifies the event, concrete new action, transmission and timing; local policy determines whether it is tradeable and its Bitcoin direction.
+-   **Source-Based Routing:** Incoming notifications are routed to the correct Jev analyzer based on their `type` (`web-monitor` or `truthsocial`) and macro source (`fed`, `nfp`, or `cpi`).
 -   **Authenticated Notifications:** Monitor clients must send `Authorization: Bearer <NOTIFY_AUTH_TOKEN>` before any analysis or trade logic runs.
 -   **Configurable Trading Logic:** Centralized and distinct management of trade parameters (amounts, leverage, confidence thresholds) for both FED and Social Media events via environment variables.
 -   **Automated Trading:** Integrates with the Bitfinex API to execute `LIMIT` orders. Features a `PROD_EXECUTION` flag for safe "dry runs".
--   **Containerized & Reproducible:** Uses **Poetry** for dependency management and **Docker/Docker Compose** for easy, consistent deployment.
+-   **Containerized & Reproducible:** Uses **uv** for dependency management and **Docker/Docker Compose** for easy, consistent deployment.
 -   **Robust Testing Suite:** Includes a comprehensive set of unit and end-to-end tests using `pytest` to ensure reliability.
 
 ## Project Structure
@@ -33,10 +48,10 @@ asentrx-trade-decision-engine/
 │   ├── nfp_expectations.json   # Configurable file for NFP expectations
 │   ├── cpi_expectations.json   # Configurable file for CPI expectations
 │   ├── ai/
-│   │   ├── fed_decision_agent.py
-│   │   ├── nfp_decision_agent.py
-│   │   ├── cpi_decision_agent.py
-│   │   └── social_media_agent.py
+│   │   ├── jev_analyzer.py    # Single request, timeout and audit logging
+│   │   ├── jev_schemas.py     # Typed questions for each source
+│   │   ├── jev_policy.py      # Local decisions and abstention
+│   │   └── agents/            # Source-specific entry points
 │   ├── trading/
 │   │   └── trade_decision_manager.py
 ...
@@ -49,10 +64,12 @@ asentrx-trade-decision-engine/
 ### Prerequisites
 
 -   Python 3.12+
--   [Poetry](https://python-poetry.org/docs/#installation)
+-   [uv](https://docs.astral.sh/uv/getting-started/installation/)
 -   [Docker](https://www.docker.com/products/docker-desktop/)
 
-### Setup and Run Locally (with Poetry)
+### Setup and Run Locally (with uv)
+
+Python 3.12 is selected by `.python-version`. `uv.lock` is committed; use `uv sync --locked` for reproducible installs. The application is not installed as a Python package. Production images install only runtime dependencies with `uv sync --locked --no-dev`.
 
 1.  **Clone the repository:**
     ```bash
@@ -67,15 +84,15 @@ asentrx-trade-decision-engine/
     ```
 
 3.  **Install dependencies:**
-    Make sure you have Poetry installed, then run:
+    Install the locked dependencies (including the development group):
     ```bash
-    poetry install
+    uv sync --locked
     ```
 
 4.  **Run the application:**
     The application will be served by Uvicorn and accessible at `http://localhost:8000`.
     ```bash
-    poetry run python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload   
+    uv run --locked uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ```
 
 ### Setup and Run (with Docker)
@@ -100,25 +117,27 @@ The test suite is divided into several categories using pytest markers.
 
 -   **`unit`**: Fast tests for individual components.
 -   **`e2e`**: End-to-end tests that mock external services.
--   **`live_llm`**: A special E2E test that makes a real call to the configured LLM.
+-   **`live_jev`**: Live Jev API tests; no trader is constructed. These also carry the deprecated `live_llm` alias so existing `-m "not live_llm"` commands remain offline.
 
 You can run tests as follows:
 
-**1. Run all tests (including the live LLM test):**
+**1. Run all tests (including the live Jev tests):**
 ```bash
-poetry run pytest
+uv run --locked pytest
 ```
 
 **2. Run only the fast unit and mocked E2E tests:**
 This is the recommended command for CI/CD and most local testing.
 ```bash
-poetry run pytest -m "not live_llm"
+uv run --locked pytest -m "not live_jev"
 ```
 
-**3. Run only the live LLM integration test:**
-Requires a valid LLM API key in `.env.test`.
+**3. Run only the live Jev integration tests:**
+The expected-hike case checks Jev's classification separately and accepts either a neutral decision or an abstention caused by valid confidence below the configured threshold. Incorrect classification, missing confidence and provider failures still fail the test. Directional cases still require the expected direction.
+
+Requires `TYPESAFE_API_KEY` and `PROD_EXECUTION=False` in the environment or `.env`. Tests make paid API calls. `.env.test` can supply the provider key; application settings are loaded at import time.
 ```bash
-poetry run pytest -m live_llm
+uv run --locked pytest -m live_jev
 ```
 
 ---
@@ -177,4 +196,4 @@ If the analysis results in an actionable trade:
   "message": "Notification processed and trade logic triggered."
 }
 ```
-Check the application logs to see which AI agent was used and the resulting (simulated or real) trade action.
+Check `jev_analysis_completed` in the logs for the Jev answers and local policy decision, followed by the resulting (simulated or real) trade action.

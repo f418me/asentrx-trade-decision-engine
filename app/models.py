@@ -169,10 +169,15 @@ class IrrelevantCPIContent(BaseModel):
 
 
 # --- Union Types for Analysis Results ---
+class AnalysisAbstention(BaseModel):
+    """An analysis that cannot safely produce a trading signal."""
+    source: Literal["fed", "cpi", "nfp", "social"]
+    reason: str
+
 FEDAnalysisResult = Union[FEDDecisionImpact, FailedFEDAnalysis, IrrelevantFEDContent]
 NFPAnalysisResult = Union[NFPReportImpact, FailedNFPAnalysis, IrrelevantNFPContent]
 CPIAnalysisResult = Union[CPIReportImpact, FailedCPIAnalysis, IrrelevantCPIContent]
 SocialMediaAnalysisResult = Union[SocialMediaMarketSignal, FailedSocialMediaAnalysis, IrrelevantSocialMediaContent]
 
 # A general type for any possible analysis outcome
-AnyAnalysisResult = Union[FEDAnalysisResult, NFPAnalysisResult, CPIAnalysisResult, SocialMediaAnalysisResult]
+AnyAnalysisResult = Union[FEDAnalysisResult, NFPAnalysisResult, CPIAnalysisResult, SocialMediaAnalysisResult, AnalysisAbstention]

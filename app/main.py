@@ -21,7 +21,7 @@ from app.models import (
     FailedNFPAnalysis, IrrelevantNFPContent, NFPReportImpact,
     FailedCPIAnalysis, IrrelevantCPIContent, CPIReportImpact,
     FailedSocialMediaAnalysis, IrrelevantSocialMediaContent,
-    AnyAnalysisResult
+    AnyAnalysisResult, AnalysisAbstention
 )
 from app.utils.logger_config import configure_logging, APP_LOGGER_NAME
 from app.utils.observability import logfire_error, logfire_info, logfire_warning
@@ -89,7 +89,7 @@ async def lifespan(app: FastAPI):
         logger.critical(f"Fatal error initializing BitfinexTrader: {e}", exc_info=True)
         app.state.trading_client = None
 
-    # Initialize AI Agents
+    # Initialize the source-specific Jev analyzers.
     try:
         app.state.fed_decision_analyzer = FEDDecisionAnalyzer(expectations_path=EXPECTATIONS_FILE_PATH)
         logger.info(f"FEDDecisionAnalyzer initialized.")
@@ -129,13 +129,19 @@ async def lifespan(app: FastAPI):
         app.state.trade_decision_manager = None
         logger.warning("Trader client not available. TradeDecisionManager will not be functional.")
 
-    yield
-    logger.info(f"aSentrX Trade Decision Engine ({APP_LOGGER_NAME}) has shut down.")
+    try:
+        yield
+    finally:
+        for name in ("fed_decision_analyzer", "nfp_decision_analyzer", "cpi_decision_analyzer", "social_media_analyzer"):
+            analyzer = getattr(app.state, name, None)
+            if analyzer is not None:
+                await analyzer.aclose()
+        logger.info(f"aSentrX Trade Decision Engine ({APP_LOGGER_NAME}) has shut down.")
 
 
 app = FastAPI(
     title="aSentrX Trade Decision Engine",
-    description="Receives external notifications, analyzes content with AI, and executes trades.",
+    description="Receives notifications, classifies content with Jev, and applies Python policies before trade execution.",
     version="1.1.0",
     lifespan=lifespan
 )
@@ -248,8 +254,13 @@ async def handle_truth_social_notification(request: Request, payload: SocialMedi
 
 async def _process_analysis_result(request: Request, analysis_result: AnyAnalysisResult, uuid: str):
     """
-    Shared logic to handle the result from any AI analyzer.
+    Shared logic to handle the result from any Jev analyzer and its local policy.
     """
+    if isinstance(analysis_result, AnalysisAbstention):
+        logfire_info("analysis_abstained", uuid=uuid, **analysis_result.model_dump())
+        logger.info("Analysis abstained for %s: %s", uuid, analysis_result.reason)
+        return {"status": "success_no_action", "message": analysis_result.reason}
+
     if isinstance(analysis_result, (FailedFEDAnalysis, FailedNFPAnalysis, FailedCPIAnalysis, FailedSocialMediaAnalysis)):
         logger.error(f"Analysis failed for UUID {uuid}: {analysis_result.error_message}")
         logfire_error(

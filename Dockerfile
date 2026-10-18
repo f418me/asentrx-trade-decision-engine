@@ -1,31 +1,21 @@
 # Stage 1: Builder - Installiert Abhängigkeiten
 FROM python:3.12-slim AS builder
 
-# Setze Umgebungsvariablen für Poetry
-ENV POETRY_VERSION=1.8.2
-ENV POETRY_HOME="/opt/poetry"
-ENV POETRY_CACHE_DIR="/tmp/poetry_cache"
-# Wir erstellen ein virtuelles Environment im Projektverzeichnis, um es einfach kopieren zu können
-ENV POETRY_VIRTUALENVS_IN_PROJECT=true
+COPY --from=ghcr.io/astral-sh/uv:0.8.8 /uv /uvx /bin/
+ENV UV_PYTHON_DOWNLOADS=never
+ENV UV_LINK_MODE=copy
 
-# Installiere Systemabhängigkeiten (curl zum Herunterladen von Poetry)
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
-
-# Installiere Poetry
-RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_VERSION}
-ENV PATH="${POETRY_HOME}/bin:${PATH}"
+# Git is required for the pinned Bitfinex and Truthbrush dependencies.
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Setze das Arbeitsverzeichnis
 WORKDIR /app
 
 # Kopiere die Abhängigkeitsdateien, um den Docker-Cache zu nutzen
-COPY poetry.lock pyproject.toml ./
+COPY uv.lock pyproject.toml .python-version ./
 
-# Installiere die Projekt-Abhängigkeiten
-# --no-interaction: Keine interaktiven Fragen
-# --no-ansi: Deaktiviert ANSI-Output
-# --no-dev: Installiert keine Entwicklungs-Abhängigkeiten
-RUN poetry install --no-interaction --no-ansi --no-dev
+# Install only production dependencies from the committed lockfile.
+RUN uv sync --locked --no-dev
 
 # Stage 2: Final - Erstellt das schlanke Produktionsimage
 FROM python:3.12-slim AS final

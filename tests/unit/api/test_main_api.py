@@ -9,10 +9,15 @@ from tests.conftest import TEST_NOTIFY_AUTH_HEADERS
 pytestmark = pytest.mark.unit
 
 
+@pytest.fixture(autouse=True)
+def mock_social_startup(mocker):
+    mocker.patch('app.main.SocialMediaPostAnalyzer', autospec=True)
+
+
 def test_web_monitor_notification_rejects_already_processed_url(mocker):
-    mocker.patch('app.main.FEDDecisionAnalyzer')
-    mocker.patch('app.main.NFPDecisionAnalyzer')
-    mocker.patch('app.main.CPIDecisionAnalyzer')
+    mocker.patch('app.main.FEDDecisionAnalyzer', autospec=True)
+    mocker.patch('app.main.NFPDecisionAnalyzer', autospec=True)
+    mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.TradeDecisionManager')
     mocker.patch('app.main.SmsNotifier')
     mocker.patch('app.main.Trader')
@@ -37,9 +42,9 @@ def test_web_monitor_notification_rejects_already_processed_url(mocker):
 
 
 def test_web_monitor_notification_rejects_already_processed_content_id(mocker):
-    mocker.patch('app.main.FEDDecisionAnalyzer')
-    mocker.patch('app.main.NFPDecisionAnalyzer')
-    mocker.patch('app.main.CPIDecisionAnalyzer')
+    mocker.patch('app.main.FEDDecisionAnalyzer', autospec=True)
+    mocker.patch('app.main.NFPDecisionAnalyzer', autospec=True)
+    mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.TradeDecisionManager')
     mocker.patch('app.main.SmsNotifier')
     mocker.patch('app.main.Trader')
@@ -72,10 +77,11 @@ def test_web_monitor_notification_success_flow_adds_dedup_key_to_set(mocker):
         actual_fed_decision_summary="Mocked summary",
     )
     mock_analyzer_instance = MagicMock()
+    mock_analyzer_instance.aclose = AsyncMock()
     mock_analyzer_instance.analyze_content = AsyncMock(return_value=successful_analysis)
     mocker.patch('app.main.FEDDecisionAnalyzer', return_value=mock_analyzer_instance)
-    mocker.patch('app.main.NFPDecisionAnalyzer')
-    mocker.patch('app.main.CPIDecisionAnalyzer')
+    mocker.patch('app.main.NFPDecisionAnalyzer', autospec=True)
+    mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mock_trade_manager_instance = MagicMock()
     mocker.patch('app.main.TradeDecisionManager', return_value=mock_trade_manager_instance)
     mocker.patch('app.main.SmsNotifier')
@@ -104,8 +110,10 @@ def test_web_monitor_notification_success_flow_adds_dedup_key_to_set(mocker):
 
 def test_web_monitor_notification_routes_bls_payload_to_nfp_analyzer(mocker):
     fed_analyzer = MagicMock()
+    fed_analyzer.aclose = AsyncMock()
     fed_analyzer.analyze_content = AsyncMock()
     nfp_analyzer = MagicMock()
+    nfp_analyzer.aclose = AsyncMock()
     nfp_analyzer.analyze_content = AsyncMock(return_value=NFPReportImpact(
         impact_on_bitcoin="positive",
         confidence=0.91,
@@ -120,7 +128,7 @@ def test_web_monitor_notification_routes_bls_payload_to_nfp_analyzer(mocker):
 
     mocker.patch('app.main.FEDDecisionAnalyzer', return_value=fed_analyzer)
     mocker.patch('app.main.NFPDecisionAnalyzer', return_value=nfp_analyzer)
-    mocker.patch('app.main.CPIDecisionAnalyzer')
+    mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.TradeDecisionManager', return_value=trade_manager)
     mocker.patch('app.main.SmsNotifier')
     mocker.patch('app.main.Trader')
@@ -146,10 +154,13 @@ def test_web_monitor_notification_routes_bls_payload_to_nfp_analyzer(mocker):
 
 def test_web_monitor_notification_routes_bls_cpi_payload_to_cpi_analyzer(mocker):
     fed_analyzer = MagicMock()
+    fed_analyzer.aclose = AsyncMock()
     fed_analyzer.analyze_content = AsyncMock()
     nfp_analyzer = MagicMock()
+    nfp_analyzer.aclose = AsyncMock()
     nfp_analyzer.analyze_content = AsyncMock()
     cpi_analyzer = MagicMock()
+    cpi_analyzer.aclose = AsyncMock()
     cpi_analyzer.analyze_content = AsyncMock(return_value=CPIReportImpact(
         impact_on_bitcoin="negative",
         confidence=0.91,
@@ -192,10 +203,11 @@ def test_web_monitor_notification_routes_bls_cpi_payload_to_cpi_analyzer(mocker)
 def test_web_monitor_notification_analyzer_fails_returns_200(mocker):
     failed_analysis = FailedFEDAnalysis(error_message="AI failed spectacularly")
     mock_analyzer_instance = MagicMock()
+    mock_analyzer_instance.aclose = AsyncMock()
     mock_analyzer_instance.analyze_content = AsyncMock(return_value=failed_analysis)
     mocker.patch('app.main.FEDDecisionAnalyzer', return_value=mock_analyzer_instance)
-    mocker.patch('app.main.NFPDecisionAnalyzer')
-    mocker.patch('app.main.CPIDecisionAnalyzer')
+    mocker.patch('app.main.NFPDecisionAnalyzer', autospec=True)
+    mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.TradeDecisionManager')
     mocker.patch('app.main.SmsNotifier')
     mocker.patch('app.main.Trader')
@@ -221,9 +233,9 @@ def test_web_monitor_notification_analyzer_fails_returns_200(mocker):
 
 
 def test_web_monitor_notification_rejects_missing_auth_token(mocker):
-    mocker.patch('app.main.FEDDecisionAnalyzer')
-    mocker.patch('app.main.NFPDecisionAnalyzer')
-    mocker.patch('app.main.CPIDecisionAnalyzer')
+    mocker.patch('app.main.FEDDecisionAnalyzer', autospec=True)
+    mocker.patch('app.main.NFPDecisionAnalyzer', autospec=True)
+    mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.TradeDecisionManager')
     mocker.patch('app.main.SmsNotifier')
     mocker.patch('app.main.Trader')
@@ -244,10 +256,9 @@ def test_web_monitor_notification_rejects_missing_auth_token(mocker):
 
 
 def test_truth_social_notification_rejects_invalid_auth_token(mocker):
-    mocker.patch('app.main.SocialMediaPostAnalyzer')
-    mocker.patch('app.main.FEDDecisionAnalyzer')
-    mocker.patch('app.main.NFPDecisionAnalyzer')
-    mocker.patch('app.main.CPIDecisionAnalyzer')
+    mocker.patch('app.main.FEDDecisionAnalyzer', autospec=True)
+    mocker.patch('app.main.NFPDecisionAnalyzer', autospec=True)
+    mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.TradeDecisionManager')
     mocker.patch('app.main.SmsNotifier')
     mocker.patch('app.main.Trader')
