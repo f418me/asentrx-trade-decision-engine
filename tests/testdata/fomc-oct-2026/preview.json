@@ -1,0 +1,9 @@
+{
+  "uuid": "synthetic-fomc-20261028-preview",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261028a.htm",
+  "content-id": "synthetic-fomc-20261028-preview",
+  "content": "October 27, 2026: Preview of tomorrow's FOMC meeting. Economists expect rates to remain at 3.75 to 4.00 percent and another hike in December. The Committee has not yet announced its decision.",
+  "ip": "127.0.0.1"
+}
+

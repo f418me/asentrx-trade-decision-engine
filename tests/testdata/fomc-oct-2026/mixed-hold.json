@@ -1,0 +1,9 @@
+{
+  "uuid": "synthetic-fomc-20261028-mixed-hold",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261028a.htm",
+  "content-id": "synthetic-fomc-20261028-mixed-hold",
+  "content": "October 28, 2026. Federal Reserve issues FOMC statement. The Committee decided today to maintain the target range at 3.75 to 4.00 percent. Inflation risks have intensified and could require substantial additional tightening. At the same time, sharply deteriorating employment could require near-term rate cuts. Neither risk dominates the outlook.",
+  "ip": "127.0.0.1"
+}
+

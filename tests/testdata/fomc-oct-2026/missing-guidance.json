@@ -1,0 +1,9 @@
+{
+  "uuid": "synthetic-fomc-20261028-missing-guidance",
+  "type": "web-monitor",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261028a.htm",
+  "content-id": "synthetic-fomc-20261028-missing-guidance",
+  "content": "October 28, 2026. Federal Reserve issues FOMC statement. The Committee decided today to maintain the target range at 3.75 to 4.00 percent. No forward guidance or economic assessment is included in this excerpt.",
+  "ip": "127.0.0.1"
+}
+

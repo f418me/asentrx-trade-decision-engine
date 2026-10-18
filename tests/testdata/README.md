@@ -2,7 +2,8 @@
 
 This directory keeps only currently useful payload fixtures:
 
-- `fomc-sept-2026/` - manual and integration payloads for the September 16, 2026 FOMC setup.
+- `fomc-oct-2026/` - active October 28 setup, dated analyst expectations, frozen baseline and synthetic offline/live scenarios.
+- `fomc-sept-2026/` - historical September 16 regression payloads; live tests freeze their original baseline.
 - `nfp/` - Employment Situation / NFP macro payloads.
 - `social/` - Truth Social payloads used by social-media flow tests.
 

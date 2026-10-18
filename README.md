@@ -113,6 +113,12 @@ Python 3.12 is selected by `.python-version`. `uv.lock` is committed; use `uv sy
 
 ### Running Tests
 
+Current FOMC setup: **October 28, 2026, 19:00 Europe/Zurich**.
+The working baseline is hold / 0bp / hawkish, researched October 18.
+See [October expectations and scenarios](tests/testdata/fomc-oct-2026/README.md)
+for sources, dissenting forecasts, safe test commands and limitations.
+Refresh expectations before deployment. September fixtures remain historical regressions.
+
 The test suite is divided into several categories using pytest markers.
 
 -   **`unit`**: Fast tests for individual components.

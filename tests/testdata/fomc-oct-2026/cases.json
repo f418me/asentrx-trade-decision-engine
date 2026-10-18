@@ -1,0 +1,160 @@
+[
+  {
+    "id": "expected-hold",
+    "expected": "neutral",
+    "judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 0,
+      "actual_narrative": "hawkish",
+      "guidance_vs_baseline": "in_line"
+    },
+    "required_live_judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 0,
+      "guidance_vs_baseline": "in_line"
+    }
+  },
+  {
+    "id": "dovish-hold",
+    "expected": "positive",
+    "judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 0,
+      "actual_narrative": "dovish",
+      "guidance_vs_baseline": "more_dovish"
+    },
+    "required_live_judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 0,
+      "guidance_vs_baseline": "more_dovish"
+    }
+  },
+  {
+    "id": "hawkish-hold",
+    "expected": "negative",
+    "judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 0,
+      "actual_narrative": "hawkish",
+      "guidance_vs_baseline": "more_hawkish"
+    },
+    "required_live_judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 0,
+      "guidance_vs_baseline": "more_hawkish"
+    }
+  },
+  {
+    "id": "surprise-25bp-hike",
+    "expected": "negative",
+    "judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 25,
+      "actual_narrative": "hawkish",
+      "guidance_vs_baseline": "in_line"
+    },
+    "required_live_judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 25
+    }
+  },
+  {
+    "id": "surprise-50bp-hike",
+    "expected": "negative",
+    "judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 50,
+      "actual_narrative": "hawkish",
+      "guidance_vs_baseline": "more_hawkish"
+    },
+    "required_live_judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 50
+    }
+  },
+  {
+    "id": "surprise-cut",
+    "expected": "positive",
+    "judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": -25,
+      "actual_narrative": "dovish",
+      "guidance_vs_baseline": "more_dovish"
+    },
+    "required_live_judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": -25
+    }
+  },
+  {
+    "id": "mixed-hold",
+    "expected": "neutral",
+    "judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 0,
+      "actual_narrative": "mixed",
+      "guidance_vs_baseline": "mixed"
+    },
+    "required_live_judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 0,
+      "guidance_vs_baseline": "mixed"
+    }
+  },
+  {
+    "id": "missing-rate",
+    "expected": "abstain",
+    "judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": null,
+      "actual_narrative": "hawkish",
+      "guidance_vs_baseline": "unknown"
+    },
+    "required_live_judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": null
+    }
+  },
+  {
+    "id": "missing-guidance",
+    "expected": "abstain",
+    "judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 0,
+      "actual_narrative": "neutral",
+      "guidance_vs_baseline": "unknown"
+    },
+    "required_live_judgments": {
+      "is_fresh_release": true,
+      "actual_change_bp": 0,
+      "guidance_vs_baseline": "unknown"
+    }
+  },
+  {
+    "id": "preview",
+    "expected": "abstain",
+    "judgments": {
+      "is_fresh_release": false,
+      "actual_change_bp": null,
+      "actual_narrative": "hawkish",
+      "guidance_vs_baseline": "unknown"
+    },
+    "required_live_judgments": {
+      "is_fresh_release": false
+    }
+  },
+  {
+    "id": "minutes",
+    "expected": "abstain",
+    "judgments": {
+      "is_fresh_release": false,
+      "actual_change_bp": 25,
+      "actual_narrative": "hawkish",
+      "guidance_vs_baseline": "in_line"
+    },
+    "required_live_judgments": {
+      "is_fresh_release": false
+    }
+  }
+]
+
