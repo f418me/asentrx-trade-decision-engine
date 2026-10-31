@@ -3,16 +3,16 @@ import logging
 from app.models import CPIReportImpact, FEDDecisionImpact, NFPReportImpact, SocialMediaMarketSignal, AnyAnalysisResult
 from app.config import AppConfig
 from app.trading.trader import Trader
-from app.utils.sms_notifier import SmsNotifier
+from app.utils.slack_notifier import SlackNotifier
 from app.utils.logger_config import APP_LOGGER_NAME
-from app.utils.observability import logfire_error, logfire_info
+from app.utils.observability import logfire_error, logfire_info, trade_outcome
 
 logger = logging.getLogger(f"{APP_LOGGER_NAME}.TradeDecisionManager")
 
 class TradeDecisionManager:
-    def __init__(self, trader: Trader, sms_notifier: SmsNotifier):
+    def __init__(self, trader: Trader, slack_notifier: SlackNotifier):
         self.trader = trader
-        self.sms_notifier = sms_notifier
+        self.slack_notifier = slack_notifier
         self.PROD_EXECUTION = AppConfig.PROD_EXECUTION
         self.TRADE_SYMBOL = AppConfig.TRADE_SYMBOL
 
@@ -23,6 +23,7 @@ class TradeDecisionManager:
         logger.info("TradeDecisionManager initialized.")
 
     def _log_social_no_trade(self, content_id: str, signal: SocialMediaMarketSignal, veto_reason: str):
+        self._outcome(signal, content_id, "no_trade", "social_gate_rejected", veto_reason)
         logfire_info(
             "trade_decision_no_trade",
             source="truthsocial",
@@ -167,6 +168,28 @@ class TradeDecisionManager:
                 return {"amount": AppConfig.ORDER_AMOUNT_FED_SHORT_MED_CONF, "leverage": AppConfig.LEVERAGE_FED_SHORT_MED_CONF, "desc": "Medium-Confidence CPI NEGATIVE"}
         return None
 
+    def _outcome(self, result, content_id, outcome, reason_code, reason, **extra):
+        social = isinstance(result, SocialMediaMarketSignal)
+        bitcoin = social and (result.asset == "btc" or result.event_type in
+                              {"crypto_policy_positive", "crypto_policy_negative"})
+        high = (AppConfig.TS_CONFIDENCE_THRESHOLD_BITCOIN_HIGH if bitcoin else
+                AppConfig.TS_CONFIDENCE_THRESHOLD_HIGH) if social else AppConfig.CONFIDENCE_THRESHOLD_FED_HIGH
+        medium = (AppConfig.TS_CONFIDENCE_THRESHOLD_BITCOIN_MED if bitcoin else
+                  AppConfig.TS_CONFIDENCE_THRESHOLD_MED) if social else AppConfig.CONFIDENCE_THRESHOLD_FED_MED
+        source = ("truthsocial" if social else "fed" if isinstance(result, FEDDecisionImpact)
+                  else "cpi" if isinstance(result, CPIReportImpact)
+                  else "nfp" if isinstance(result, NFPReportImpact) else "unknown")
+        trade_outcome(
+            content_id=content_id, outcome=outcome, reason_code=reason_code, reason=reason,
+            source=source, symbol=self.TRADE_SYMBOL, prod_execution=self.PROD_EXECUTION,
+            confidence=getattr(result, "confidence", None),
+            confidence_threshold_high=high, confidence_threshold_medium=medium,
+            analysis_reasoning=getattr(result, "reasoning", None),
+            direction=getattr(result, "direction", getattr(result, "impact_on_bitcoin", None)),
+            order_attempted=self.PROD_EXECUTION and outcome in {"submitted", "submission_failed"},
+            **extra,
+        )
+
     def execute_trade_from_analysis(self, result: AnyAnalysisResult, content_id: str):
         log_prefix = f"Content ID [{content_id}]:"
         trade_params = None
@@ -214,9 +237,16 @@ class TradeDecisionManager:
 
         else:
             logger.error(f"{log_prefix} Unsupported analysis result type: {type(result)}. Cannot execute trade.")
+            self._outcome(result, content_id, "no_trade", "unsupported_result", "Unsupported analysis result type.")
             return
 
         if not trade_params:
+            if not isinstance(result, SocialMediaMarketSignal):
+                neutral = result.impact_on_bitcoin == "neutral"
+                self._outcome(result, content_id, "no_trade",
+                              "neutral_signal" if neutral else "confidence_below_threshold",
+                              "No directional signal." if neutral else
+                              f"Confidence {result.confidence} below minimum {AppConfig.CONFIDENCE_THRESHOLD_FED_MED}.")
             logger.info(f"{log_prefix} Analysis did not meet confidence thresholds for a trade. No action.")
             return
 
@@ -230,7 +260,7 @@ class TradeDecisionManager:
             "limit_offset_percentage": limit_offset
         }
 
-        sms_message_body = (
+        notification_body = (
             f"aSentrX: {order_to_execute['description']} for {self.TRADE_SYMBOL}. "
             f"Amt: {order_to_execute['amount']}, Lev: {order_to_execute['leverage']}"
         )
@@ -279,6 +309,27 @@ class TradeDecisionManager:
             success=order_executed_successfully,
         )
 
-        if AppConfig.SMS_NOTIFICATIONS_ENABLED and self.sms_notifier:
-            status = "Succeeded" if order_executed_successfully else "Failed"
-            self.sms_notifier.send_sms(f"{sms_message_body}. Status: {status}.")
+        outcome = ("dry_run" if not self.PROD_EXECUTION else
+                   "submitted" if order_executed_successfully else "submission_failed")
+        self._outcome(
+            result, content_id, outcome,
+            "production_disabled" if not self.PROD_EXECUTION else
+            "signal_accepted" if order_executed_successfully else "execution_failed",
+            "Eligible signal simulated; production execution disabled." if not self.PROD_EXECUTION else
+            "Directional signal passed gates; trader returned success (fill not verified)."
+            if order_executed_successfully else
+            "Directional signal passed gates, but trader failed or returned no successful result.",
+            amount=order_to_execute["amount"], leverage=order_to_execute["leverage"],
+            limit_offset_percentage=limit_offset,
+        )
+
+        if AppConfig.SLACK_NOTIFICATIONS_ENABLED and self.slack_notifier:
+            status = "Submitted" if order_executed_successfully else "Failed"
+            if not self.PROD_EXECUTION:
+                status = "Simulated"
+            mode = "LIVE" if self.PROD_EXECUTION else "DRY RUN"
+            self.slack_notifier.send_message(
+                f"[{mode}] {notification_body}. Status: {status}. "
+                f"Confidence: {result.confidence:.2f}. Content ID: {content_id}",
+                content_id=content_id,
+            )

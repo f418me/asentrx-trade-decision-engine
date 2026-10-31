@@ -111,10 +111,40 @@ Python 3.12 is selected by `.python-version`. `uv.lock` is committed; use `uv sy
     docker-compose logs -f
     ```
 
+### Slack Trade Alerts
+
+Trade alerts use a channel-specific [Slack incoming webhook](https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/).
+Create a Slack app, enable Incoming Webhooks, and authorize the destination channel.
+Set these variables in the engine's local `.env` or Fly secrets:
+
+```dotenv
+SLACK_NOTIFICATIONS_ENABLED=True
+SLACK_WEBHOOK_URL=<your-secret-incoming-webhook-url>
+```
+
+Notifications default to disabled (including in `fly.toml`). Set the enabled flag
+as a Fly secret or change the deployment configuration to enable them.
+The URL is a credential: never commit it. No Slack bot token or channel ID is needed.
+Old `SMS_NOTIFICATIONS_ENABLED` and `TWILIO_*` settings are no longer used and can
+be removed from local/deployment secrets.
+
+Alerts follow eligible FED/CPI/NFP and Truth Social order attempts, including
+failures, with symbol, size, leverage, confidence and content ID.
+LIVE / DRY RUN and Submitted / Failed / Simulated are explicit; Submitted does
+not mean filled. Neutral, abstained and gated-out signals do not send alerts.
+Trading rules are unchanged.
+
+Delivery is best effort after order execution, with 2-second connect and
+3-second read timeouts, no redirects and no retries. It can delay the API
+response, but not submission of that order. Alerts are not durably queued.
+Console logs and Logfire events `slack_notification_sent` /
+`slack_notification_failed` record delivery outcomes; notifier logs omit the
+webhook URL, message body and raw exception details.
+
 ### Running Tests
 
 Current FOMC setup: **October 28, 2026, 19:00 Europe/Zurich**.
-The working baseline is hold / 0bp / hawkish, researched October 18.
+The working baseline is hold / 0bp / hawkish, rechecked October 27.
 See [October expectations and scenarios](tests/testdata/fomc-oct-2026/README.md)
 for sources, dissenting forecasts, safe test commands and limitations.
 Refresh expectations before deployment. September fixtures remain historical regressions.

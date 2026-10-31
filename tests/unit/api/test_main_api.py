@@ -19,7 +19,7 @@ def test_web_monitor_notification_rejects_already_processed_url(mocker):
     mocker.patch('app.main.NFPDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.TradeDecisionManager')
-    mocker.patch('app.main.SmsNotifier')
+    mocker.patch('app.main.SlackNotifier')
     mocker.patch('app.main.Trader')
     mocker.patch('app.main.BitfinexTrader')
 
@@ -46,7 +46,7 @@ def test_web_monitor_notification_rejects_already_processed_content_id(mocker):
     mocker.patch('app.main.NFPDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.TradeDecisionManager')
-    mocker.patch('app.main.SmsNotifier')
+    mocker.patch('app.main.SlackNotifier')
     mocker.patch('app.main.Trader')
     mocker.patch('app.main.BitfinexTrader')
 
@@ -84,7 +84,7 @@ def test_web_monitor_notification_success_flow_adds_dedup_key_to_set(mocker):
     mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mock_trade_manager_instance = MagicMock()
     mocker.patch('app.main.TradeDecisionManager', return_value=mock_trade_manager_instance)
-    mocker.patch('app.main.SmsNotifier')
+    mocker.patch('app.main.SlackNotifier')
     mocker.patch('app.main.Trader')
     mocker.patch('app.main.BitfinexTrader')
 
@@ -130,7 +130,7 @@ def test_web_monitor_notification_routes_bls_payload_to_nfp_analyzer(mocker):
     mocker.patch('app.main.NFPDecisionAnalyzer', return_value=nfp_analyzer)
     mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.TradeDecisionManager', return_value=trade_manager)
-    mocker.patch('app.main.SmsNotifier')
+    mocker.patch('app.main.SlackNotifier')
     mocker.patch('app.main.Trader')
     mocker.patch('app.main.BitfinexTrader')
 
@@ -177,7 +177,7 @@ def test_web_monitor_notification_routes_bls_cpi_payload_to_cpi_analyzer(mocker)
     mocker.patch('app.main.NFPDecisionAnalyzer', return_value=nfp_analyzer)
     mocker.patch('app.main.CPIDecisionAnalyzer', return_value=cpi_analyzer)
     mocker.patch('app.main.TradeDecisionManager', return_value=trade_manager)
-    mocker.patch('app.main.SmsNotifier')
+    mocker.patch('app.main.SlackNotifier')
     mocker.patch('app.main.Trader')
     mocker.patch('app.main.BitfinexTrader')
 
@@ -209,7 +209,7 @@ def test_web_monitor_notification_analyzer_fails_returns_200(mocker):
     mocker.patch('app.main.NFPDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.TradeDecisionManager')
-    mocker.patch('app.main.SmsNotifier')
+    mocker.patch('app.main.SlackNotifier')
     mocker.patch('app.main.Trader')
     mocker.patch('app.main.BitfinexTrader')
 
@@ -237,7 +237,7 @@ def test_web_monitor_notification_rejects_missing_auth_token(mocker):
     mocker.patch('app.main.NFPDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.TradeDecisionManager')
-    mocker.patch('app.main.SmsNotifier')
+    mocker.patch('app.main.SlackNotifier')
     mocker.patch('app.main.Trader')
     mocker.patch('app.main.BitfinexTrader')
 
@@ -260,7 +260,7 @@ def test_truth_social_notification_rejects_invalid_auth_token(mocker):
     mocker.patch('app.main.NFPDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.CPIDecisionAnalyzer', autospec=True)
     mocker.patch('app.main.TradeDecisionManager')
-    mocker.patch('app.main.SmsNotifier')
+    mocker.patch('app.main.SlackNotifier')
     mocker.patch('app.main.Trader')
     mocker.patch('app.main.BitfinexTrader')
 

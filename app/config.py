@@ -16,12 +16,9 @@ class AppConfig:
     JEV_TIMEOUT_SECONDS = float(os.getenv("JEV_TIMEOUT_SECONDS", "10"))
     NOTIFY_AUTH_TOKEN = os.getenv("NOTIFY_AUTH_TOKEN", "")
 
-    # --- Twilio SMS Notifications ---
-    SMS_NOTIFICATIONS_ENABLED = os.getenv("SMS_NOTIFICATIONS_ENABLED", "False").lower() == "true"
-    TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
-    TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
-    TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER')
-    TWILIO_TO_NUMBER = os.getenv('TWILIO_TO_NUMBER')
+    # --- Slack Notifications ---
+    SLACK_NOTIFICATIONS_ENABLED = os.getenv("SLACK_NOTIFICATIONS_ENABLED", "False").lower() == "true"
+    SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
 
     # --- Bitfinex API Credentials & Trading Symbol ---
     BFX_API_KEY = os.getenv("BFX_API_KEY")

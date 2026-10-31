@@ -9,17 +9,17 @@ def mock_trader():
     return MagicMock()
 
 @pytest.fixture
-def mock_sms_notifier():
+def mock_slack_notifier():
     return MagicMock()
 
-def test_execute_trade_from_social_media_bitcoin_high_confidence(mock_trader, mock_sms_notifier, mocker):
+def test_execute_trade_from_social_media_bitcoin_high_confidence(mock_trader, mock_slack_notifier, mocker):
     # Arrange
     mocker.patch.object(AppConfig, 'PROD_EXECUTION', True)
     mocker.patch.object(AppConfig, 'TS_ORDER_AMOUNT_BITCOIN_BUY_HIGH_CONF', 0.02)
     mocker.patch.object(AppConfig, 'TS_LEVERAGE_BITCOIN_BUY_HIGH_CONF', 25)
     
     # Re-initialize manager to pick up patched config
-    decision_manager = TradeDecisionManager(trader=mock_trader, sms_notifier=mock_sms_notifier)
+    decision_manager = TradeDecisionManager(trader=mock_trader, slack_notifier=mock_slack_notifier)
 
     analysis_result = SocialMediaMarketSignal(
         is_tradeable=True,
@@ -42,7 +42,7 @@ def test_execute_trade_from_social_media_bitcoin_high_confidence(mock_trader, mo
     assert call_kwargs['amount'] == 0.02
     assert call_kwargs['leverage'] == 25
 
-def test_execute_trade_from_social_media_tariffs_med_confidence(mock_trader, mock_sms_notifier, mocker):
+def test_execute_trade_from_social_media_tariffs_med_confidence(mock_trader, mock_slack_notifier, mocker):
     # Arrange
     mocker.patch.object(AppConfig, 'PROD_EXECUTION', True)
     mocker.patch.object(AppConfig, 'TS_ORDER_AMOUNT_SHORT_MED_CONF', -0.05)
@@ -50,7 +50,7 @@ def test_execute_trade_from_social_media_tariffs_med_confidence(mock_trader, moc
     mocker.patch.object(AppConfig, 'TS_CONFIDENCE_THRESHOLD_MED', 0.85)
 
     # Re-initialize manager to pick up patched config
-    decision_manager = TradeDecisionManager(trader=mock_trader, sms_notifier=mock_sms_notifier)
+    decision_manager = TradeDecisionManager(trader=mock_trader, slack_notifier=mock_slack_notifier)
 
     analysis_result = SocialMediaMarketSignal(
         is_tradeable=True,
@@ -73,10 +73,10 @@ def test_execute_trade_from_social_media_tariffs_med_confidence(mock_trader, moc
     assert call_kwargs['amount'] == -0.05
     assert call_kwargs['leverage'] == 8
 
-def test_no_trade_if_confidence_too_low(mock_trader, mock_sms_notifier, mocker):
+def test_no_trade_if_confidence_too_low(mock_trader, mock_slack_notifier, mocker):
     # Arrange
     mocker.patch.object(AppConfig, 'PROD_EXECUTION', True)
-    decision_manager = TradeDecisionManager(trader=mock_trader, sms_notifier=mock_sms_notifier)
+    decision_manager = TradeDecisionManager(trader=mock_trader, slack_notifier=mock_slack_notifier)
     
     analysis_result = SocialMediaMarketSignal(
         is_tradeable=True,
@@ -96,10 +96,10 @@ def test_no_trade_if_confidence_too_low(mock_trader, mock_sms_notifier, mocker):
     # Assert
     mock_trader.execute_order.assert_not_called()
 
-def test_no_trade_for_non_tradeable_signal(mock_trader, mock_sms_notifier, mocker):
+def test_no_trade_for_non_tradeable_signal(mock_trader, mock_slack_notifier, mocker):
     # Arrange
     mocker.patch.object(AppConfig, 'PROD_EXECUTION', True)
-    decision_manager = TradeDecisionManager(trader=mock_trader, sms_notifier=mock_sms_notifier)
+    decision_manager = TradeDecisionManager(trader=mock_trader, slack_notifier=mock_slack_notifier)
     
     analysis_result = SocialMediaMarketSignal(
         is_tradeable=False,
@@ -120,10 +120,10 @@ def test_no_trade_for_non_tradeable_signal(mock_trader, mock_sms_notifier, mocke
     # Assert
     mock_trader.execute_order.assert_not_called()
 
-def test_no_trade_if_novelty_too_low(mock_trader, mock_sms_notifier, mocker):
+def test_no_trade_if_novelty_too_low(mock_trader, mock_slack_notifier, mocker):
     # Arrange
     mocker.patch.object(AppConfig, 'PROD_EXECUTION', True)
-    decision_manager = TradeDecisionManager(trader=mock_trader, sms_notifier=mock_sms_notifier)
+    decision_manager = TradeDecisionManager(trader=mock_trader, slack_notifier=mock_slack_notifier)
 
     analysis_result = SocialMediaMarketSignal(
         is_tradeable=True,
@@ -143,10 +143,10 @@ def test_no_trade_if_novelty_too_low(mock_trader, mock_sms_notifier, mocker):
     # Assert
     mock_trader.execute_order.assert_not_called()
 
-def test_no_trade_if_timing_is_slow(mock_trader, mock_sms_notifier, mocker):
+def test_no_trade_if_timing_is_slow(mock_trader, mock_slack_notifier, mocker):
     # Arrange
     mocker.patch.object(AppConfig, 'PROD_EXECUTION', True)
-    decision_manager = TradeDecisionManager(trader=mock_trader, sms_notifier=mock_sms_notifier)
+    decision_manager = TradeDecisionManager(trader=mock_trader, slack_notifier=mock_slack_notifier)
 
     analysis_result = SocialMediaMarketSignal(
         is_tradeable=True,
