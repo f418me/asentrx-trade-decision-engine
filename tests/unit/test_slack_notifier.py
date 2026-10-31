@@ -1,4 +1,6 @@
 import logging
+import threading
+import asyncio
 
 import pytest
 import requests
@@ -14,7 +16,9 @@ URL = "https://hooks.slack.com/services/TEST/CHANNEL/secret"
 def notifier(monkeypatch):
     monkeypatch.setattr(AppConfig, "SLACK_NOTIFICATIONS_ENABLED", True)
     monkeypatch.setattr(AppConfig, "SLACK_WEBHOOK_URL", URL)
-    return SlackNotifier()
+    instance = SlackNotifier()
+    yield instance
+    instance.close()
 
 
 def test_slack_success(notifier, mocker):
@@ -68,3 +72,66 @@ def test_disabled_and_empty_messages(notifier, mocker, monkeypatch):
     monkeypatch.setattr(AppConfig, "SLACK_NOTIFICATIONS_ENABLED", False)
     assert not SlackNotifier().send_message("Trade")
     post.assert_not_called()
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_telemetry_failure_preserves_delivery_result(notifier, mocker, failure):
+    post = mocker.patch("app.utils.slack_notifier.requests.post",
+                        return_value=mocker.Mock(status_code=200, text="ok"))
+    if failure:
+        post.side_effect = requests.Timeout("secret")
+    mocker.patch("app.utils.slack_notifier.logfire_info", side_effect=RuntimeError("offline"))
+    mocker.patch("app.utils.slack_notifier.logfire_warning", side_effect=RuntimeError("offline"))
+    assert notifier.send_message("Trade") is (not failure)
+
+
+@pytest.mark.asyncio
+async def test_slow_slack_does_not_block_event_loop(notifier, mocker):
+    entered, release = threading.Event(), threading.Event()
+    threads = []
+    def slow_post(*args, **kwargs):
+        threads.append(threading.get_ident())
+        entered.set()
+        release.wait(timeout=2)
+        return mocker.Mock(status_code=200, text="ok")
+    mocker.patch("app.utils.slack_notifier.requests.post", side_effect=slow_post)
+    try:
+        assert notifier.enqueue_message("Trade", content_id="test")
+        assert await asyncio.to_thread(entered.wait, 1)
+        await asyncio.wait_for(asyncio.sleep(0), timeout=0.2)
+        assert not release.is_set()
+        assert threads == [notifier._worker.ident]
+        assert threads[0] != threading.get_ident()
+    finally:
+        release.set()
+        await asyncio.to_thread(notifier.close)
+    assert not notifier._worker.is_alive()
+    assert not notifier.enqueue_message("After shutdown")
+
+
+def test_full_queue_drops_without_waiting(notifier, mocker):
+    # Simulate a busy worker, without starting a background thread.
+    notifier._worker = mocker.Mock()
+    for _ in range(100):
+        assert notifier.enqueue_message("Trade")
+    assert not notifier.enqueue_message("Overflow")
+
+
+def test_worker_start_failure_can_recover(notifier, mocker):
+    worker = mocker.Mock()
+    worker.start.side_effect = [RuntimeError("thread unavailable"), None]
+    mocker.patch("app.utils.slack_notifier.threading.Thread", return_value=worker)
+    assert not notifier.enqueue_message("First")
+    assert notifier._worker is None
+    assert notifier._queue.empty()
+    assert notifier.enqueue_message("Retry")
+    assert notifier._worker is worker
+    notifier.close()
+    worker.join.assert_called_once_with(timeout=5)
+
+
+def test_invalid_config_survives_telemetry_failure(monkeypatch, mocker):
+    monkeypatch.setattr(AppConfig, "SLACK_NOTIFICATIONS_ENABLED", True)
+    monkeypatch.setattr(AppConfig, "SLACK_WEBHOOK_URL", "")
+    mocker.patch("app.utils.slack_notifier.logfire_warning", side_effect=RuntimeError("offline"))
+    assert not SlackNotifier().enabled

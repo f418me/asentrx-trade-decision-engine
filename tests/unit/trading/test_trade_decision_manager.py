@@ -45,8 +45,8 @@ def test_execute_trade_for_fed_decision_triggers_correct_trades(decision_manager
     assert call_kwargs['amount'] == expected_amount
     assert call_kwargs['leverage'] == expected_leverage
     assert call_kwargs['limit_offset_percentage'] is not None
-    mock_slack_notifier.send_message.assert_called_once()
-    notification_body = mock_slack_notifier.send_message.call_args.args[0]
+    mock_slack_notifier.enqueue_message.assert_called_once()
+    notification_body = mock_slack_notifier.enqueue_message.call_args.args[0]
     assert description in notification_body
 
 
@@ -74,8 +74,8 @@ def test_execute_trade_for_nfp_triggers_correct_trades(decision_manager, mock_tr
     assert call_kwargs['amount'] == expected_amount
     assert call_kwargs['leverage'] == expected_leverage
     assert call_kwargs['limit_offset_percentage'] is not None
-    mock_slack_notifier.send_message.assert_called_once()
-    notification_body = mock_slack_notifier.send_message.call_args.args[0]
+    mock_slack_notifier.enqueue_message.assert_called_once()
+    notification_body = mock_slack_notifier.enqueue_message.call_args.args[0]
     assert description in notification_body
 
 
@@ -103,8 +103,8 @@ def test_execute_trade_for_cpi_triggers_correct_trades(decision_manager, mock_tr
     assert call_kwargs['amount'] == expected_amount
     assert call_kwargs['leverage'] == expected_leverage
     assert call_kwargs['limit_offset_percentage'] is not None
-    mock_slack_notifier.send_message.assert_called_once()
-    notification_body = mock_slack_notifier.send_message.call_args.args[0]
+    mock_slack_notifier.enqueue_message.assert_called_once()
+    notification_body = mock_slack_notifier.enqueue_message.call_args.args[0]
     assert description in notification_body
 
 
@@ -117,7 +117,7 @@ def test_execute_trade_does_nothing_for_neutral_impact(decision_manager, mock_tr
     )
     decision_manager.execute_trade_from_analysis(analysis_result, "test-neutral-fed-123")
     mock_trader.execute_order.assert_not_called()
-    decision_manager.slack_notifier.send_message.assert_not_called()
+    decision_manager.slack_notifier.enqueue_message.assert_not_called()
 
 
 @pytest.mark.parametrize("production,order_result,raises,status", [
@@ -136,7 +136,7 @@ def test_slack_reports_order_status(decision_manager, mock_trader, mock_slack_no
     result = FEDDecisionImpact(impact_on_bitcoin="positive", confidence=0.99,
                                reasoning="Test", actual_fed_decision_summary="Test")
     decision_manager.execute_trade_from_analysis(result, "event-status")
-    call = mock_slack_notifier.send_message.call_args
+    call = mock_slack_notifier.enqueue_message.call_args
     assert f"Status: {status}" in call.args[0]
     assert ("[LIVE]" if production else "[DRY RUN]") in call.args[0]
     assert call.kwargs["content_id"] == "event-status"

@@ -1,4 +1,5 @@
 import logging
+import asyncio
 import uvicorn
 import os
 import sys
@@ -133,6 +134,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        await asyncio.to_thread(app.state.slack_notifier.close)
         for name in ("fed_decision_analyzer", "nfp_decision_analyzer", "cpi_decision_analyzer", "social_media_analyzer"):
             analyzer = getattr(app.state, name, None)
             if analyzer is not None:

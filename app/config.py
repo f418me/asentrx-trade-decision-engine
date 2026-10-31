@@ -8,7 +8,6 @@ class AppConfig:
     # --- General Application Settings ---
     LOG_LEVEL_CONSOLE = os.getenv("LOG_LEVEL_CONSOLE", "INFO").upper()
     PROD_EXECUTION = os.getenv("PROD_EXECUTION", "False").lower() == "true"
-    SENTRY_DSN = os.getenv('SENTRY_DSN')
     LOGFIRE_TOKEN = os.getenv("LOGFIRE_TOKEN")
     LOGFIRE_ENVIRONMENT = os.getenv("LOGFIRE_ENVIRONMENT", "local")
     JEV_MODEL = os.getenv("JEV_MODEL", "typesafe:jev-1.13.0")

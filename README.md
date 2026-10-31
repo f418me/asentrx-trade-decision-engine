@@ -21,6 +21,30 @@ Each analysis has one output schema and no tools or fallback. All questions are 
 
 Console logs and Logfire's `jev_analysis_completed` include content ID/hash, exact baseline, model, policy version, judgments, provider confidence, decision and elapsed milliseconds. `jev_analysis_failed` records failures and elapsed time. No extra model call generates explanations. Actual end-to-end latency still includes the monitor, network and exchange; measure it in dry runs.
 
+## Observability and Operational Limits
+
+Set `LOGFIRE_TOKEN` and `LOGFIRE_ENVIRONMENT` to export structured events to Logfire.
+Console logging remains available without a token. Sentry is not used.
+
+Search for `trade_outcome` and the notification's `content_id` to inspect the final
+decision. Outcomes are `no_trade`, `dry_run`, `submitted` or `submission_failed`.
+The event includes `reason_code` and `reason`, with confidence, thresholds and
+order parameters where applicable. Reasons cover duplicates, unavailable analyzers,
+analysis failures, abstentions, irrelevant content, neutral signals and rejected
+trade gates. `submitted` means the trader returned success, not that a fill was verified.
+Logfire export failures for this summary do not change the trade outcome.
+
+Deduplication is in memory, per process, and resets on restart. IDs are marked
+before analysis, so a failed analysis cannot be retried with the same ID in that
+process. Multiple workers or machines do not share this state and can submit
+duplicate orders; this is not durable, exactly-once execution.
+
+CPI and NFP use the FED confidence, order-size and leverage settings. Truth Social
+uses the separate `TS_*` settings. Review the effective environment before deployment:
+the checked-in `fly.toml` enables `PROD_EXECUTION=True` and uses different sizing
+and leverage from `.env-example`. Local dry-run settings do not make Fly deployments
+dry runs. Refresh each relevant expectations JSON before its next release.
+
 ## Core Features
 
 -   **Modular FastAPI Service:** Built with a clean separation of concerns, making it easy to extend and maintain.
@@ -65,7 +89,7 @@ asentrx-trade-decision-engine/
 
 -   Python 3.12+
 -   [uv](https://docs.astral.sh/uv/getting-started/installation/)
--   [Docker](https://www.docker.com/products/docker-desktop/)
+-   [Docker](https://www.docker.com/products/docker-desktop/) (only for container deployment)
 
 ### Setup and Run Locally (with uv)
 
@@ -134,17 +158,22 @@ LIVE / DRY RUN and Submitted / Failed / Simulated are explicit; Submitted does
 not mean filled. Neutral, abstained and gated-out signals do not send alerts.
 Trading rules are unchanged.
 
-Delivery is best effort after order execution, with 2-second connect and
-3-second read timeouts, no redirects and no retries. It can delay the API
-response, but not submission of that order. Alerts are not durably queued.
+Delivery is best effort after order execution, using one background worker and
+a bounded in-memory queue (100 waiting alerts). Slack HTTP requests do not block
+the API event loop. Queuing is not delivery confirmation. Full queues drop alerts
+with a diagnostic event. HTTP uses 2-second connect and 3-second read timeouts,
+no redirects and no retries. Shutdown stops accepting alerts, waits up to five
+seconds for the worker, and discards remaining queued alerts. Alerts are not durable.
 Console logs and Logfire events `slack_notification_sent` /
 `slack_notification_failed` record delivery outcomes; notifier logs omit the
 webhook URL, message body and raw exception details.
+Slack telemetry failures do not change the delivery result.
 
 ### Running Tests
 
-Current FOMC setup: **October 28, 2026, 19:00 Europe/Zurich**.
-The working baseline is hold / 0bp / hawkish, rechecked October 27.
+The checked-in FOMC baseline targets **October 28, 2026, 19:00 Europe/Zurich**,
+which is now a past event. Its pre-release expectation was hold / 0bp / hawkish,
+rechecked October 27; this is not a baseline for the next FOMC or a statement of the actual result.
 See [October expectations and scenarios](tests/testdata/fomc-oct-2026/README.md)
 for sources, dissenting forecasts, safe test commands and limitations.
 Refresh expectations before deployment. September fixtures remain historical regressions.
@@ -181,6 +210,12 @@ uv run --locked pytest -m live_jev
 ## API Usage Examples (cURL)
 
 You can test the source-specific notification endpoints using `curl`.
+
+Use only a local instance started with `PROD_EXECUTION=False` for these synthetic
+examples, never the production URL. They make real Jev API calls and do not
+guarantee a directional signal. Use a new content ID for each repeat test.
+Without an initialized Bitfinex client, the trade manager is unavailable even
+in dry-run mode; mocked E2E tests exercise the complete flow without credentials.
 
 ### Example 1: Simulating a "Dovish" FED Announcement (`web-monitor`)
 
@@ -225,11 +260,19 @@ curl -X 'POST' \
 
 **Expected Response (for both):**
 
-If the analysis results in an actionable trade:
+If analysis reaches the trade decision manager:
 ```json
 {
   "status": "success",
   "message": "Notification processed and trade logic triggered."
 }
 ```
-Check `jev_analysis_completed` in the logs for the Jev answers and local policy decision, followed by the resulting (simulated or real) trade action.
+`success` confirms that trade logic ran; it does not confirm an order submission
+or fill. The manager can still reject a neutral or below-threshold signal.
+Check `jev_analysis_completed` for Jev answers and `trade_outcome` for the final
+decision and reason.
+
+Other HTTP 200 statuses include `success_no_action`, `success_analysis_failed`
+and `success_trade_manager_unavailable`. Duplicate notifications return HTTP 409;
+an unavailable source analyzer returns HTTP 503. Do not treat HTTP 200 alone as
+proof that analysis or trading succeeded.

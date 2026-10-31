@@ -328,7 +328,7 @@ class TradeDecisionManager:
             if not self.PROD_EXECUTION:
                 status = "Simulated"
             mode = "LIVE" if self.PROD_EXECUTION else "DRY RUN"
-            self.slack_notifier.send_message(
+            self.slack_notifier.enqueue_message(
                 f"[{mode}] {notification_body}. Status: {status}. "
                 f"Confidence: {result.confidence:.2f}. Content ID: {content_id}",
                 content_id=content_id,
