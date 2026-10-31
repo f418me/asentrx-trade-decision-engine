@@ -49,7 +49,9 @@ def decide(source, answers, baseline, details, threshold):
     try:
         return _decide(source, answers, baseline, details, threshold)
     except Abstain as exc:
-        return AnalysisAbstention(source=source, reason=str(exc))
+        confidence = details.get("confidence") if isinstance(details, dict) else None
+        return AnalysisAbstention(source=source, reason=str(exc),
+                                  confidence_by_field=confidence if isinstance(confidence, dict) else {})
 
 
 def _decide(source, answers, baseline, details, threshold):

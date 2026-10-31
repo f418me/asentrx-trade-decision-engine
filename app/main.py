@@ -1,4 +1,5 @@
 import logging
+import asyncio
 import uvicorn
 import os
 import sys
@@ -24,9 +25,10 @@ from app.models import (
     AnyAnalysisResult, AnalysisAbstention
 )
 from app.utils.logger_config import configure_logging, APP_LOGGER_NAME
-from app.utils.observability import logfire_error, logfire_info, logfire_warning
+from app.utils.observability import logfire_error, logfire_info, logfire_warning, trade_outcome
+from app.config import AppConfig
 from app.security import require_notify_auth
-from app.utils.sms_notifier import SmsNotifier
+from app.utils.slack_notifier import SlackNotifier
 from app.trading.bitfinex_trader import BitfinexTrader
 from app.trading.trader import Trader
 from app.trading.trade_decision_manager import TradeDecisionManager
@@ -73,7 +75,7 @@ def _detect_web_monitor_source(payload: WebMonitorPayload) -> str:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"aSentrX Trade Decision Engine ({APP_LOGGER_NAME}) is starting up...")
-    app.state.sms_notifier = SmsNotifier()
+    app.state.slack_notifier = SlackNotifier()
     app.state.processed_content_ids: Set[str] = set()
     logger.info("Initialized in-memory store for tracking processed content IDs.")
 
@@ -122,7 +124,7 @@ async def lifespan(app: FastAPI):
     if app.state.trading_client:
         app.state.trade_decision_manager = TradeDecisionManager(
             trader=app.state.trading_client,
-            sms_notifier=app.state.sms_notifier
+            slack_notifier=app.state.slack_notifier
         )
         logger.info("TradeDecisionManager initialized.")
     else:
@@ -132,6 +134,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        await asyncio.to_thread(app.state.slack_notifier.close)
         for name in ("fed_decision_analyzer", "nfp_decision_analyzer", "cpi_decision_analyzer", "social_media_analyzer"):
             analyzer = getattr(app.state, name, None)
             if analyzer is not None:
@@ -170,6 +173,9 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
     processed_ids: Set[str] = request.app.state.processed_content_ids
     dedup_key = _get_web_monitor_dedup_key(payload)
     if dedup_key in processed_ids:
+        trade_outcome(content_id=dedup_key, uuid=payload.uuid, outcome="no_trade",
+                      reason_code="duplicate", reason="Content already received; not reprocessed.",
+                      source="web-monitor", order_attempted=False)
         logger.warning(f"Skipping already processed web-monitor key: {dedup_key}")
         logfire_warning(
             "notification_duplicate",
@@ -199,13 +205,16 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
         unavailable_detail = "FED Decision Analyzer is not available."
 
     if not analyzer:
+        trade_outcome(content_id=dedup_key, uuid=payload.uuid, outcome="no_trade",
+                      reason_code="analyzer_unavailable", reason=unavailable_detail,
+                      source=source_kind, order_attempted=False)
         raise HTTPException(status_code=503, detail=unavailable_detail)
 
     logger.info(f"Routing UUID {payload.uuid} to {analyzer_name}.")
     analysis_result = await analyzer.analyze_content(payload.content, payload.content_id or payload.uuid)
 
     # --- 3. Process analysis result ---
-    return await _process_analysis_result(request, analysis_result, payload.uuid)
+    return await _process_analysis_result(request, analysis_result, payload.uuid, payload.content_id or payload.url)
 
 
 @app.post("/notify/truth-social", tags=["Notifications"], dependencies=[Depends(require_notify_auth)])
@@ -226,6 +235,9 @@ async def handle_truth_social_notification(request: Request, payload: SocialMedi
     # --- 1. Deduplication ---
     processed_ids: Set[str] = request.app.state.processed_content_ids
     if payload.content_id in processed_ids:
+        trade_outcome(content_id=payload.content_id, uuid=payload.uuid, outcome="no_trade",
+                      reason_code="duplicate", reason="Content already received; not reprocessed.",
+                      source="truthsocial", order_attempted=False)
         logger.warning(f"Skipping already processed content_id: {payload.content_id}")
         logfire_warning(
             "notification_duplicate",
@@ -243,25 +255,40 @@ async def handle_truth_social_notification(request: Request, payload: SocialMedi
     # --- 2. Routing to Social Media Analyzer ---
     analyzer = request.app.state.social_media_analyzer
     if not analyzer:
+        trade_outcome(content_id=payload.content_id, uuid=payload.uuid, outcome="no_trade",
+                      reason_code="analyzer_unavailable", reason="Social Media Analyzer is unavailable.",
+                      source="truthsocial", order_attempted=False)
         raise HTTPException(status_code=503, detail="Social Media Analyzer is not available.")
 
     logger.info(f"Routing UUID {payload.uuid} to SocialMediaPostAnalyzer.")
     analysis_result = await analyzer.analyze_content(payload.content, payload.content_id)
 
     # --- 3. Process analysis result ---
-    return await _process_analysis_result(request, analysis_result, payload.uuid)
+    return await _process_analysis_result(request, analysis_result, payload.uuid, payload.content_id)
 
 
-async def _process_analysis_result(request: Request, analysis_result: AnyAnalysisResult, uuid: str):
+async def _process_analysis_result(request: Request, analysis_result: AnyAnalysisResult, uuid: str, content_id: str | None = None):
     """
     Shared logic to handle the result from any Jev analyzer and its local policy.
     """
+    content_id = content_id or uuid
+    def no_trade(code, reason):
+        trade_outcome(content_id=content_id, uuid=uuid, outcome="no_trade",
+                      reason_code=code, reason=reason,
+                      result_type=type(analysis_result).__name__,
+                      source=getattr(analysis_result, "source", None),
+                      jev_confidence_threshold=AppConfig.JEV_CONFIDENCE_THRESHOLD,
+                      confidence_by_field=getattr(analysis_result, "confidence_by_field", {}),
+                      order_attempted=False)
+
     if isinstance(analysis_result, AnalysisAbstention):
+        no_trade("analysis_abstained", analysis_result.reason)
         logfire_info("analysis_abstained", uuid=uuid, **analysis_result.model_dump())
         logger.info("Analysis abstained for %s: %s", uuid, analysis_result.reason)
         return {"status": "success_no_action", "message": analysis_result.reason}
 
     if isinstance(analysis_result, (FailedFEDAnalysis, FailedNFPAnalysis, FailedCPIAnalysis, FailedSocialMediaAnalysis)):
+        no_trade("analysis_failed", analysis_result.error_message)
         logger.error(f"Analysis failed for UUID {uuid}: {analysis_result.error_message}")
         logfire_error(
             "analysis_failed",
@@ -273,6 +300,7 @@ async def _process_analysis_result(request: Request, analysis_result: AnyAnalysi
         return {"status": "success_analysis_failed", "message": f"Analysis failed: {analysis_result.error_message}"}
 
     if isinstance(analysis_result, (IrrelevantFEDContent, IrrelevantNFPContent, IrrelevantCPIContent, IrrelevantSocialMediaContent)):
+        no_trade("irrelevant_content", analysis_result.reason)
         logger.info(f"Content from UUID {uuid} analyzed as irrelevant. Reason: {analysis_result.reason}")
         logfire_info(
             "analysis_irrelevant",
@@ -285,6 +313,7 @@ async def _process_analysis_result(request: Request, analysis_result: AnyAnalysi
     # --- Triggering Trade Logic for Actionable Events ---
     trade_decision_manager = request.app.state.trade_decision_manager
     if not trade_decision_manager:
+        no_trade("trade_manager_unavailable", "Trading client or decision manager is unavailable.")
         logger.error(f"Trade Decision Manager not available for actionable event from UUID {uuid}.")
         logfire_error(
             "trade_manager_unavailable",
@@ -301,8 +330,7 @@ async def _process_analysis_result(request: Request, analysis_result: AnyAnalysi
         uuid=uuid,
         result_type=type(analysis_result).__name__,
     )
-    # This runs in the background and does not block the response.
-    trade_decision_manager.execute_trade_from_analysis(analysis_result, uuid)
+    trade_decision_manager.execute_trade_from_analysis(analysis_result, content_id)
 
     return {"status": "success", "message": "Notification processed and trade logic triggered."}
 

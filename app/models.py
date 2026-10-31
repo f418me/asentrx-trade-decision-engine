@@ -173,6 +173,7 @@ class AnalysisAbstention(BaseModel):
     """An analysis that cannot safely produce a trading signal."""
     source: Literal["fed", "cpi", "nfp", "social"]
     reason: str
+    confidence_by_field: dict = Field(default_factory=dict)
 
 FEDAnalysisResult = Union[FEDDecisionImpact, FailedFEDAnalysis, IrrelevantFEDContent]
 NFPAnalysisResult = Union[NFPReportImpact, FailedNFPAnalysis, IrrelevantNFPContent]

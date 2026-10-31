@@ -1,6 +1,7 @@
 # FOMC October 28, 2026
 
-Research snapshot: October 18, 2026. Refresh before deploying for the meeting.
+Research refreshed: October 27, 2026, for tomorrow's decision. Frozen synthetic
+fixtures retain the October 18 baseline, whose structured values are unchanged.
 All payloads here are synthetic scenarios, not published Fed statements.
 Their statement URL is an anticipated fixture URL, not a verified live release.
 
@@ -19,8 +20,25 @@ retain a tightening bias with timing dependent on the data.
 The [meeting calendar](https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm)
 does not mark October as an economic-projections meeting: no scheduled SEP/dot plot.
 
+### Latest evidence available October 27
+
+- [Reuters poll published October 20](https://www.investing.com/news/economy-news/fed-to-skip-october-but-raise-rates-again-in-december-nearly-all-economists-say-reuters-poll-4960095): survey conducted October 16-20; 94 of 100 economists expected an October hold at 3.75%-4.00%, all 100 a December hike. These are survey counts, not event probabilities.
+- [Goldman Sachs preview reported October 26](https://www.investing.com/news/economy-news/why-goldman-sachs-expects-fed-to-skip-october-rate-hike-4972616): pause in October, next hike in December; little new guidance expected from the press conference.
+- [Charles Schwab, October 27, 09:12 ET](https://www.schwab.com/learn/story/stock-market-update-open): a move tomorrow looks unlikely; Kevin Gordon points to officials' reluctance to hike at every meeting. The article reports CME-implied October hike odds below 10% and December odds around 80%. This is a dated secondary market-pricing snapshot, not a live CME feed. This rolling page may later change.
+
+Conclusion: retain **hold / 0bp / hawkish**. Hawkish is our baseline interpretation,
+not a measured analyst-consensus label. A data-dependent pause with inflation
+vigilance and the option of further tightening is in line; an explicit December
+promise is not required. Stronger-than-baseline tightening guidance is negative,
+a clear dovish pivot positive under the existing policy. Actual market returns
+may differ. No new same-day multi-bank survey was verified; publication dates
+above deliberately distinguish today's review from older forecasts.
+
+### Historical bank snapshot (not revalidated as today's forecasts)
+
 The [Reuters brokerage survey, October 15 (AOL republication)](https://www.aol.com/articles/factbox-major-brokerages-expect-next-114611000.html)
-reports these forecasts for the remaining meetings:
+reported these forecasts. In particular, BofA's dissent below is the October 15
+snapshot; do not treat this entire table as freshly confirmed October 27 calls:
 
 | Analysts | October | December | Year-end target range |
 | --- | --- | --- | --- |
