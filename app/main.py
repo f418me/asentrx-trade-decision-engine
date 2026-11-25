@@ -3,6 +3,8 @@ import asyncio
 import uvicorn
 import os
 import sys
+from urllib.parse import urlsplit
+from datetime import date
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request
 from typing import Set
@@ -11,16 +13,19 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPECTATIONS_FILE_PATH = os.path.join(PROJECT_ROOT, "app", "expectations.json")
 NFP_EXPECTATIONS_FILE_PATH = os.path.join(PROJECT_ROOT, "app", "nfp_expectations.json")
 CPI_EXPECTATIONS_FILE_PATH = os.path.join(PROJECT_ROOT, "app", "cpi_expectations.json")
+PCE_EXPECTATIONS_FILE_PATH = os.path.join(PROJECT_ROOT, "app", "pce_expectations.json")
 
 from app.ai.agents.fed_decision_agent import FEDDecisionAnalyzer
 from app.ai.agents.nfp_decision_agent import NFPDecisionAnalyzer
 from app.ai.agents.cpi_decision_agent import CPIDecisionAnalyzer
+from app.ai.agents.pce_decision_agent import PCEDecisionAnalyzer
 from app.ai.agents.social_media_agent import SocialMediaPostAnalyzer
 from app.models import (
     WebMonitorPayload, SocialMediaPayload,
     FailedFEDAnalysis, IrrelevantFEDContent, FEDDecisionImpact,
     FailedNFPAnalysis, IrrelevantNFPContent, NFPReportImpact,
     FailedCPIAnalysis, IrrelevantCPIContent, CPIReportImpact,
+    FailedPCEAnalysis,
     FailedSocialMediaAnalysis, IrrelevantSocialMediaContent,
     AnyAnalysisResult, AnalysisAbstention
 )
@@ -44,10 +49,16 @@ logger = logging.getLogger(f"{APP_LOGGER_NAME}.main_app")
 
 
 def _get_web_monitor_dedup_key(payload: WebMonitorPayload) -> str:
+    if _detect_web_monitor_source(payload) == "pce":
+        return payload.url.lower().rstrip("/")
     return payload.content_id or payload.url
 
 
 def _detect_web_monitor_source(payload: WebMonitorPayload) -> str:
+    if urlsplit(payload.url).hostname in ("www.bea.gov", "bea.gov"):
+        return "pce"
+    if payload.source:
+        return payload.source
     url_lower = payload.url.lower()
     content_id_lower = (payload.content_id or "").lower()
     content_lower = payload.content.lower()
@@ -114,6 +125,12 @@ async def lifespan(app: FastAPI):
         app.state.cpi_decision_analyzer = None
 
     try:
+        app.state.pce_decision_analyzer = PCEDecisionAnalyzer(expectations_path=PCE_EXPECTATIONS_FILE_PATH)
+    except Exception:
+        logger.exception("Failed to initialize PCEDecisionAnalyzer.")
+        app.state.pce_decision_analyzer = None
+
+    try:
         app.state.social_media_analyzer = SocialMediaPostAnalyzer()
         logger.info("SocialMediaPostAnalyzer initialized.")
     except Exception as e:
@@ -135,7 +152,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         await asyncio.to_thread(app.state.slack_notifier.close)
-        for name in ("fed_decision_analyzer", "nfp_decision_analyzer", "cpi_decision_analyzer", "social_media_analyzer"):
+        for name in ("fed_decision_analyzer", "nfp_decision_analyzer", "cpi_decision_analyzer", "pce_decision_analyzer", "social_media_analyzer"):
             analyzer = getattr(app.state, name, None)
             if analyzer is not None:
                 await analyzer.aclose()
@@ -169,6 +186,24 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
         url=payload.url,
     )
 
+    # Validate PCE identity and time before reserving its deduplication key.
+    source_kind = _detect_web_monitor_source(payload)
+    if source_kind == "pce":
+        analyzer = getattr(request.app.state, "pce_decision_analyzer", None)
+        if analyzer:
+            month = date.fromisoformat(analyzer.expectations.report_month + "-01")
+            slug = f"/news/{analyzer.expectations.release_at.year}/personal-income-and-outlays-{month.strftime('%B').lower()}-{month.year}"
+            url = urlsplit(payload.url)
+            if (url.scheme != "https" or url.netloc != "www.bea.gov"
+                    or url.path.rstrip("/") != slug or url.query or url.fragment):
+                return await _process_analysis_result(request, AnalysisAbstention(
+                    source="pce", reason="URL is not the configured official BEA PCE release."
+                ), payload.uuid, payload.content_id or payload.url, notify_abstention=False)
+            if not analyzer.in_release_window():
+                return await _process_analysis_result(request, AnalysisAbstention(
+                    source="pce", reason="Outside the configured PCE release window."
+                ), payload.uuid, payload.content_id or payload.url, notify_abstention=False)
+
     # --- 1. Deduplication ---
     processed_ids: Set[str] = request.app.state.processed_content_ids
     dedup_key = _get_web_monitor_dedup_key(payload)
@@ -191,7 +226,11 @@ async def handle_web_monitor_notification(request: Request, payload: WebMonitorP
 
     # --- 2. Routing to the appropriate macro analyzer ---
     source_kind = _detect_web_monitor_source(payload)
-    if source_kind == "nfp":
+    if source_kind == "pce":
+        analyzer = getattr(request.app.state, "pce_decision_analyzer", None)
+        analyzer_name = "PCEDecisionAnalyzer"
+        unavailable_detail = "PCE Decision Analyzer is not available."
+    elif source_kind == "nfp":
         analyzer = request.app.state.nfp_decision_analyzer
         analyzer_name = "NFPDecisionAnalyzer"
         unavailable_detail = "NFP Decision Analyzer is not available."
@@ -267,7 +306,8 @@ async def handle_truth_social_notification(request: Request, payload: SocialMedi
     return await _process_analysis_result(request, analysis_result, payload.uuid, payload.content_id)
 
 
-async def _process_analysis_result(request: Request, analysis_result: AnyAnalysisResult, uuid: str, content_id: str | None = None):
+async def _process_analysis_result(request: Request, analysis_result: AnyAnalysisResult, uuid: str,
+                                   content_id: str | None = None, *, notify_abstention: bool = True):
     """
     Shared logic to handle the result from any Jev analyzer and its local policy.
     """
@@ -285,9 +325,12 @@ async def _process_analysis_result(request: Request, analysis_result: AnyAnalysi
         no_trade("analysis_abstained", analysis_result.reason)
         logfire_info("analysis_abstained", uuid=uuid, **analysis_result.model_dump())
         logger.info("Analysis abstained for %s: %s", uuid, analysis_result.reason)
+        notifier = getattr(request.app.state, "slack_notifier", None)
+        if notify_abstention and AppConfig.SLACK_NOTIFICATIONS_ENABLED and notifier is not None:
+            notifier.enqueue_abstention(analysis_result, content_id=content_id)
         return {"status": "success_no_action", "message": analysis_result.reason}
 
-    if isinstance(analysis_result, (FailedFEDAnalysis, FailedNFPAnalysis, FailedCPIAnalysis, FailedSocialMediaAnalysis)):
+    if isinstance(analysis_result, (FailedFEDAnalysis, FailedNFPAnalysis, FailedCPIAnalysis, FailedPCEAnalysis, FailedSocialMediaAnalysis)):
         no_trade("analysis_failed", analysis_result.error_message)
         logger.error(f"Analysis failed for UUID {uuid}: {analysis_result.error_message}")
         logfire_error(

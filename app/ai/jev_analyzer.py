@@ -76,7 +76,7 @@ class JevAnalyzer:
     async def analyze_content(self, content, content_id_for_logging="N/A"):
         started = perf_counter()
         baseline = (
-            self.expectations.model_dump(exclude={"notes"})
+            self.expectations.model_dump(mode="json", exclude={"notes"})
             if self.expectations
             else None
         )

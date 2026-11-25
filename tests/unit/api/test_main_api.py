@@ -12,6 +12,7 @@ pytestmark = pytest.mark.unit
 @pytest.fixture(autouse=True)
 def mock_social_startup(mocker):
     mocker.patch('app.main.SocialMediaPostAnalyzer', autospec=True)
+    mocker.patch('app.main.PCEDecisionAnalyzer', autospec=True)
 
 
 def test_web_monitor_notification_rejects_already_processed_url(mocker):

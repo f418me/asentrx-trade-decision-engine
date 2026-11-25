@@ -2,11 +2,13 @@
 
 import math
 import re
+from datetime import timedelta
 
 from app.models import (
     AnalysisAbstention,
     FEDDecisionImpact,
     CPIReportImpact,
+    PCEReportImpact,
     NFPReportImpact,
     SocialMediaMarketSignal,
 )
@@ -98,7 +100,13 @@ def _decide(source, answers, baseline, details, threshold):
             actual_narrative=answers.actual_narrative,
         )
 
-    if source == "cpi":
+    if source == "pce":
+        required.append("matches_report_month")
+        field_confidence(details, required, threshold)
+        if not answers.matches_report_month:
+            raise Abstain("PCE report month does not match the baseline.")
+
+    if source in ("cpi", "pce"):
         fields = ["headline_mom", "headline_yoy", "core_mom", "core_yoy"]
     else:
         fields = ["payrolls", "unemployment", "wages_mom", "growth_scare"]
@@ -108,7 +116,16 @@ def _decide(source, answers, baseline, details, threshold):
         raise Abstain("A required release comparison is unknown.")
     reason = "; ".join(f"{name}={value}" for name, value in comparisons.items())
     impact = "neutral"
-    if source == "cpi":
+    if source == "pce":
+        values = set(comparisons.values())
+        if "below" in values and "above" in values:
+            raise Abstain("Conflicting PCE comparisons; no directional trade.")
+        if answers.core_mom == "below":
+            impact = "positive"
+        elif answers.core_mom == "above":
+            impact = "negative"
+        cls = PCEReportImpact
+    elif source == "cpi":
         values = set(comparisons.values())
         # A core surprise is required; conflicting headline/core measures veto direction.
         core = {answers.core_mom, answers.core_yoy}
@@ -132,6 +149,8 @@ def _decide(source, answers, baseline, details, threshold):
         cls = NFPReportImpact
     # Numeric actual_* fields remain null: Jev compared values, it did not extract them.
     return cls(
+        **({"expires_at": baseline.release_at + timedelta(seconds=baseline.window_seconds)}
+           if source == "pce" else {}),
         impact_on_bitcoin=impact,
         confidence=confidence,
         reasoning=reason,

@@ -1,6 +1,7 @@
 """Best-effort trade alerts via a channel-specific Slack incoming webhook."""
 
 import logging
+import math
 import queue
 import threading
 from urllib.parse import urlsplit
@@ -68,6 +69,36 @@ class SlackNotifier:
                 _emit("warning", "slack_notification_dropped", content_id=content_id,
                       reason="queue_unavailable")
                 return False
+
+    def enqueue_abstention(self, analysis, *, content_id: str) -> bool:
+        """Report a skipped analysis without coupling delivery to trading."""
+        if not self.enabled:
+            return False
+        try:
+            threshold = AppConfig.JEV_CONFIDENCE_THRESHOLD
+            fields = []
+            for name, value in sorted(analysis.confidence_by_field.items()):
+                if type(value) in (int, float) and math.isfinite(value) and 0 <= value <= 1:
+                    suffix = " (below threshold)" if value < threshold else ""
+                    fields.append(f"{name}: {value:.2f}{suffix}")
+                else:
+                    fields.append(f"{name}: invalid/missing")
+            mode = "LIVE" if AppConfig.PROD_EXECUTION else "DRY RUN"
+            body = (
+                f"aSentrX | {analysis.source.upper()} | {mode}\n"
+                "NO TRADE - Analysis abstained. No order submitted.\n"
+                f"Reason: {analysis.reason}\n"
+                f"Jev field-confidence threshold: {threshold:.2f}\n"
+                + ("\n".join(fields) if fields else "Field confidence: unavailable / not evaluated.")
+                + f"\nContent ID: {content_id}"
+            )
+            return self.enqueue_message(body, content_id=content_id)
+        except Exception:
+            # Never expose exception text: it may contain transport credentials.
+            logger.warning("Slack abstention alert could not be queued.")
+            _emit("warning", "slack_notification_dropped", content_id=content_id,
+                  reason="abstention_alert_failed")
+            return False
 
     def _run(self):
         while not self._closed.is_set():

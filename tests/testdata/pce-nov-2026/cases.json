@@ -1,0 +1,54 @@
+[
+  {
+    "id": "cool",
+    "expected": "positive",
+    "judgments": {
+      "core_mom": "below",
+      "matches_report_month": true
+    },
+    "content": "Bureau of Economic Analysis. Personal Income and Outlays, October 2026. Released November 25, 2026, 8:30 a.m. EST. For October 2026, the PCE price index increased 0.2 percent from the preceding month and 3.7 percent from one year ago. Excluding food and energy, the PCE price index increased 0.2 percent from the preceding month and 3.1 percent from one year ago. These are price index changes, not changes in personal spending."
+  },
+  {
+    "id": "hot",
+    "expected": "negative",
+    "judgments": {
+      "core_mom": "above",
+      "matches_report_month": true
+    },
+    "content": "Bureau of Economic Analysis. Personal Income and Outlays, October 2026. Released November 25, 2026, 8:30 a.m. EST. For October 2026, the PCE price index increased 0.4 percent from the preceding month and 3.9 percent from one year ago. Excluding food and energy, the PCE price index increased 0.4 percent from the preceding month and 3.3 percent from one year ago. These are price index changes, not changes in personal spending."
+  },
+  {
+    "id": "in-line",
+    "expected": "neutral",
+    "judgments": {
+      "core_mom": "in_line",
+      "matches_report_month": true
+    },
+    "content": "Bureau of Economic Analysis. Personal Income and Outlays, October 2026. Released November 25, 2026, 8:30 a.m. EST. For October 2026, the PCE price index increased 0.3 percent from the preceding month and 3.8 percent from one year ago. Excluding food and energy, the PCE price index increased 0.3 percent from the preceding month and 3.2 percent from one year ago. These are price index changes, not changes in personal spending."
+  },
+  {
+    "id": "conflict",
+    "expected": "abstain",
+    "judgments": {
+      "core_mom": "below",
+      "core_yoy": "above"
+    },
+    "content": "Bureau of Economic Analysis. Personal Income and Outlays, October 2026. Released November 25, 2026, 8:30 a.m. EST. For October 2026, the PCE price index increased 0.3 percent from the preceding month and 3.8 percent from one year ago. Excluding food and energy, the PCE price index increased 0.2 percent from the preceding month and 3.3 percent from one year ago. These are price index changes, not changes in personal spending."
+  },
+  {
+    "id": "old-month",
+    "expected": "abstain",
+    "judgments": {
+      "matches_report_month": false
+    },
+    "content": "Bureau of Economic Analysis. Personal Income and Outlays, September 2026. Released October 29, 2026, 8:30 a.m. EST. For September 2026, the PCE price index increased 0.2 percent from the preceding month and 3.6 percent from one year ago. Excluding food and energy, the PCE price index increased 0.2 percent from the preceding month and 3.1 percent from one year ago. These are price index changes, not changes in personal spending."
+  },
+  {
+    "id": "gdp",
+    "expected": "abstain",
+    "judgments": {
+      "is_fresh_release": false
+    },
+    "content": "Gross Domestic Product (Second Estimate), Third Quarter 2026. Real GDP increased at an annual rate of 3.5 percent. The quarterly PCE price index increased at an annual rate of 3.0 percent and excluding food and energy at 3.1 percent. This is a quarterly GDP report, not the October monthly Personal Income and Outlays release."
+  }
+]

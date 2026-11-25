@@ -1,6 +1,8 @@
 
 import logging
-from app.models import CPIReportImpact, FEDDecisionImpact, NFPReportImpact, SocialMediaMarketSignal, AnyAnalysisResult
+import math
+from datetime import datetime, timezone
+from app.models import CPIReportImpact, PCEReportImpact, FEDDecisionImpact, NFPReportImpact, SocialMediaMarketSignal, AnyAnalysisResult
 from app.config import AppConfig
 from app.trading.trader import Trader
 from app.utils.slack_notifier import SlackNotifier
@@ -176,7 +178,9 @@ class TradeDecisionManager:
                 AppConfig.TS_CONFIDENCE_THRESHOLD_HIGH) if social else AppConfig.CONFIDENCE_THRESHOLD_FED_HIGH
         medium = (AppConfig.TS_CONFIDENCE_THRESHOLD_BITCOIN_MED if bitcoin else
                   AppConfig.TS_CONFIDENCE_THRESHOLD_MED) if social else AppConfig.CONFIDENCE_THRESHOLD_FED_MED
-        source = ("truthsocial" if social else "fed" if isinstance(result, FEDDecisionImpact)
+        if isinstance(result, PCEReportImpact):
+            high, medium = AppConfig.PCE_CONFIDENCE_THRESHOLD_HIGH, AppConfig.PCE_CONFIDENCE_THRESHOLD_MED
+        source = ("pce" if isinstance(result, PCEReportImpact) else "truthsocial" if social else "fed" if isinstance(result, FEDDecisionImpact)
                   else "cpi" if isinstance(result, CPIReportImpact)
                   else "nfp" if isinstance(result, NFPReportImpact) else "unknown")
         trade_outcome(
@@ -190,12 +194,35 @@ class TradeDecisionManager:
             **extra,
         )
 
+    def _get_pce_trade_params(self, result):
+        if datetime.now(timezone.utc) >= result.expires_at:
+            return None
+        if not math.isfinite(result.confidence) or not 0 <= result.confidence <= 1:
+            return None
+        high, medium = AppConfig.PCE_CONFIDENCE_THRESHOLD_HIGH, AppConfig.PCE_CONFIDENCE_THRESHOLD_MED
+        if not 0 <= medium <= high <= 1:
+            return None
+        tier = "HIGH" if result.confidence >= high else "MED" if result.confidence >= medium else None
+        if tier is None or result.impact_on_bitcoin == "neutral":
+            return None
+        side = "BUY" if result.impact_on_bitcoin == "positive" else "SHORT"
+        amount = getattr(AppConfig, f"PCE_ORDER_AMOUNT_{side}_{tier}_CONF")
+        leverage = getattr(AppConfig, f"PCE_LEVERAGE_{tier}")
+        if (not math.isfinite(amount) or amount == 0 or (amount > 0) != (side == "BUY")
+                or leverage < 1 or not 0 < AppConfig.PCE_LIMIT_OFFSET <= 0.01):
+            return None
+        return {"amount": amount, "leverage": leverage,
+                "desc": f"{tier}-Confidence PCE {result.impact_on_bitcoin.upper()}"}
+
     def execute_trade_from_analysis(self, result: AnyAnalysisResult, content_id: str):
         log_prefix = f"Content ID [{content_id}]:"
         trade_params = None
         
         if isinstance(result, SocialMediaMarketSignal):
             trade_params = self._get_social_media_trade_params(result, content_id)
+
+        elif isinstance(result, PCEReportImpact):
+            trade_params = self._get_pce_trade_params(result)
 
         elif isinstance(result, FEDDecisionImpact):
             trade_params = self._get_fed_trade_params(result.impact_on_bitcoin, result.confidence)
@@ -241,6 +268,10 @@ class TradeDecisionManager:
             return
 
         if not trade_params:
+            if isinstance(result, PCEReportImpact):
+                self._outcome(result, content_id, "no_trade", "pce_gate_rejected",
+                              "Expired or neutral PCE signal, insufficient confidence or invalid PCE configuration.")
+                return
             if not isinstance(result, SocialMediaMarketSignal):
                 neutral = result.impact_on_bitcoin == "neutral"
                 self._outcome(result, content_id, "no_trade",
@@ -252,6 +283,8 @@ class TradeDecisionManager:
 
         # Determine limit offset based on trade direction
         limit_offset = AppConfig.LIMIT_OFFSET_BUY if trade_params["amount"] > 0 else AppConfig.LIMIT_OFFSET_SHORT
+        if isinstance(result, PCEReportImpact):
+            limit_offset = AppConfig.PCE_LIMIT_OFFSET
         
         order_to_execute = {
             "amount": trade_params["amount"],
@@ -284,7 +317,8 @@ class TradeDecisionManager:
                     symbol=self.TRADE_SYMBOL,
                     amount=order_to_execute["amount"],
                     leverage=order_to_execute["leverage"],
-                    limit_offset_percentage=order_to_execute["limit_offset_percentage"]
+                    limit_offset_percentage=order_to_execute["limit_offset_percentage"],
+                    **({"submit_before": result.expires_at} if isinstance(result, PCEReportImpact) else {})
                 )
                 if order_result:
                     order_executed_successfully = True

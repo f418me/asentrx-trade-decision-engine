@@ -40,6 +40,17 @@ class AppConfig:
     CONFIDENCE_THRESHOLD_FED_HIGH = float(os.getenv("CONFIDENCE_THRESHOLD_FED_HIGH", "0.90"))
     CONFIDENCE_THRESHOLD_FED_MED = float(os.getenv("CONFIDENCE_THRESHOLD_FED_MED", "0.85"))
 
+    # --- PCE settings are independent from FED/CPI/NFP sizing. ---
+    PCE_CONFIDENCE_THRESHOLD_HIGH = float(os.getenv("PCE_CONFIDENCE_THRESHOLD_HIGH", "0.95"))
+    PCE_CONFIDENCE_THRESHOLD_MED = float(os.getenv("PCE_CONFIDENCE_THRESHOLD_MED", "0.90"))
+    PCE_ORDER_AMOUNT_BUY_HIGH_CONF = float(os.getenv("PCE_ORDER_AMOUNT_BUY_HIGH_CONF", "2.0"))
+    PCE_ORDER_AMOUNT_SHORT_HIGH_CONF = float(os.getenv("PCE_ORDER_AMOUNT_SHORT_HIGH_CONF", "-2.0"))
+    PCE_ORDER_AMOUNT_BUY_MED_CONF = float(os.getenv("PCE_ORDER_AMOUNT_BUY_MED_CONF", "1.0"))
+    PCE_ORDER_AMOUNT_SHORT_MED_CONF = float(os.getenv("PCE_ORDER_AMOUNT_SHORT_MED_CONF", "-1.0"))
+    PCE_LEVERAGE_HIGH = int(os.getenv("PCE_LEVERAGE_HIGH", "50"))
+    PCE_LEVERAGE_MED = int(os.getenv("PCE_LEVERAGE_MED", "30"))
+    PCE_LIMIT_OFFSET = float(os.getenv("PCE_LIMIT_OFFSET", "0.002"))
+
     # --- Truth Social Generic Order Amounts ---
     TS_ORDER_AMOUNT_BUY_HIGH_CONF = float(os.getenv("TS_ORDER_AMOUNT_BUY_HIGH_CONF", "0.001"))
     TS_ORDER_AMOUNT_SHORT_HIGH_CONF = float(os.getenv("TS_ORDER_AMOUNT_SHORT_HIGH_CONF", "-0.001"))

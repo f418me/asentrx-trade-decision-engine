@@ -14,6 +14,7 @@ Each analysis has one output schema and no tools or fallback. All questions are 
 
 - **FOMC:** An explicit fresh rate decision is required. Signed rate surprise versus the baseline takes precedence over guidance. When rates match, more dovish guidance is positive, more hawkish guidance negative, and in-line/mixed guidance neutral. Missing guidance prevents a decision only when rates match.
 - **CPI:** Jev compares headline/core monthly and annual readings to the baseline. A difference of at least 0.1 percentage point counts as a surprise. A core surprise is required for direction; conflicting readings are neutral. Missing readings abstain.
+- **PCE:** A separate BEA Personal Income and Outlays path requires the configured reporting month, official release URL and release window. Monthly core PCE must surprise by at least 0.1 percentage point for direction. Annual core and headline comparisons veto conflicting signals; unknown or low-confidence answers abstain. In-line monthly core yields no trade. Quarterly GDP PCE figures are not monthly PCE data.
 - **NFP:** Payroll surprises require at least 30k difference; unemployment and monthly wages require 0.1 percentage point. Soft payrolls and wages with unemployment at/above baseline are positive; the reverse is negative. Conflicts or a growth scare are neutral; unknown inputs abstain.
 - **Truth Social:** Jev classifies the catalyst, concrete new action, transmission and timing. Python maps risk-on/off to up/down, vetoes contradictions, and retains the existing timing and sizing gates. `novelty_score` is now binary (1 for supported new action, otherwise 0). This is a text judgment, not verification against market history or prior posts.
 
@@ -40,7 +41,8 @@ process. Multiple workers or machines do not share this state and can submit
 duplicate orders; this is not durable, exactly-once execution.
 
 CPI and NFP use the FED confidence, order-size and leverage settings. Truth Social
-uses the separate `TS_*` settings. Review the effective environment before deployment:
+uses the separate `TS_*` settings. PCE uses independent `PCE_*` thresholds, sizes,
+leverage and limit offset. Review the effective environment before deployment:
 the checked-in `fly.toml` enables `PROD_EXECUTION=True` and uses different sizing
 and leverage from `.env-example`. Local dry-run settings do not make Fly deployments
 dry runs. Refresh each relevant expectations JSON before its next release.
@@ -52,8 +54,9 @@ dry runs. Refresh each relevant expectations JSON before its next release.
     -   **FED Decision Agent:** Jev identifies the announced rate change and guidance; Python compares them against the baseline to determine the Bitcoin signal.
     -   **NFP Decision Agent:** Analyzes official BLS Employment Situation releases against the current labor-market baseline.
     -   **CPI Decision Agent:** Analyzes official BLS Consumer Price Index releases against the current inflation baseline, with core CPI weighted most heavily.
+    -   **PCE Decision Agent:** Analyzes monthly BEA Personal Income and Outlays releases against a dated PCE baseline, with separate risk settings and strict event-window checks.
     -   **Social Media Agent:** Jev classifies the event, concrete new action, transmission and timing; local policy determines whether it is tradeable and its Bitcoin direction.
--   **Source-Based Routing:** Incoming notifications are routed to the correct Jev analyzer based on their `type` (`web-monitor` or `truthsocial`) and macro source (`fed`, `nfp`, or `cpi`).
+-   **Source-Based Routing:** Incoming notifications are routed by `type` (`web-monitor` or `truthsocial`) and optional macro `source` (`fed`, `nfp`, `cpi`, `pce`). Existing clients without `source` retain URL/content detection; BEA URLs route to PCE with release validation.
 -   **Authenticated Notifications:** Monitor clients must send `Authorization: Bearer <NOTIFY_AUTH_TOKEN>` before any analysis or trade logic runs.
 -   **Configurable Trading Logic:** Centralized and distinct management of trade parameters (amounts, leverage, confidence thresholds) for both FED and Social Media events via environment variables.
 -   **Automated Trading:** Integrates with the Bitfinex API to execute `LIMIT` orders. Features a `PROD_EXECUTION` flag for safe "dry runs".
@@ -71,6 +74,7 @@ asentrx-trade-decision-engine/
 │   ├── expectations.json       # Configurable file for FED expectations
 │   ├── nfp_expectations.json   # Configurable file for NFP expectations
 │   ├── cpi_expectations.json   # Configurable file for CPI expectations
+│   ├── pce_expectations.json   # PCE baseline, report month and UTC release window
 │   ├── ai/
 │   │   ├── jev_analyzer.py    # Single request, timeout and audit logging
 │   │   ├── jev_schemas.py     # Typed questions for each source
@@ -152,13 +156,19 @@ The URL is a credential: never commit it. No Slack bot token or channel ID is ne
 Old `SMS_NOTIFICATIONS_ENABLED` and `TWILIO_*` settings are no longer used and can
 be removed from local/deployment secrets.
 
-Alerts follow eligible FED/CPI/NFP and Truth Social order attempts, including
+Alerts follow eligible FED/CPI/NFP/PCE and Truth Social order attempts, including
 failures, with symbol, size, leverage, confidence and content ID.
 LIVE / DRY RUN and Submitted / Failed / Simulated are explicit; Submitted does
-not mean filled. Neutral, abstained and gated-out signals do not send alerts.
+not mean filled. Analyzer abstentions also send a separate `NO TRADE` alert with
+source, LIVE / DRY RUN mode, reason, content ID, Jev field-confidence threshold
+and available field confidence values. Below-threshold fields are marked. This
+uses the same webhook and enabled flag, without submitting an order.
+Neutral signals, downstream trade-gate rejections, irrelevant content and
+analysis failures still do not send these alerts. Duplicate requests and PCE
+URL/time rejections before analysis also remain silent to avoid repeated alerts.
 Trading rules are unchanged.
 
-Delivery is best effort after order execution, using one background worker and
+Delivery is best effort after an order attempt or analysis abstention, using one background worker and
 a bounded in-memory queue (100 waiting alerts). Slack HTTP requests do not block
 the API event loop. Queuing is not delivery confirmation. Full queues drop alerts
 with a diagnostic event. HTTP uses 2-second connect and 3-second read timeouts,
@@ -170,6 +180,10 @@ webhook URL, message body and raw exception details.
 Slack telemetry failures do not change the delivery result.
 
 ### Running Tests
+
+PCE preparation: **November 25, 2026, 14:30 Europe/Zurich / 13:30 UTC**,
+covering October 2026. See [PCE event runbook and test cases](tests/testdata/pce-nov-2026/README.md)
+for baseline sources, separate risk settings, deployment order and known limitations.
 
 The checked-in FOMC baseline targets **October 28, 2026, 19:00 Europe/Zurich**,
 which is now a past event. Its pre-release expectation was hold / 0bp / hawkish,

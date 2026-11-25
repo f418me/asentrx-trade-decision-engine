@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from app.trading.bitfinex_trader import BitfinexTrader
 from app.utils.logger_config import APP_LOGGER_NAME
 
@@ -33,7 +34,8 @@ class Trader:
         self.bfx_trader = bfx_trader
         logger.info("Trader initialized.")
 
-    def execute_order(self, symbol: str, amount: float, leverage: int, limit_offset_percentage: float):
+    def execute_order(self, symbol: str, amount: float, leverage: int, limit_offset_percentage: float,
+                      *, submit_before: datetime | None = None):
         """
         Executes a trading order.
 
@@ -58,7 +60,14 @@ class Trader:
         logger.info(
             f"Attempting to execute order for {symbol}: amount={amount}, lev={leverage}, offset={limit_offset_percentage * 100}%.")
 
-        status_data_list = self.bfx_trader.get_derivative_status(symbol=symbol)
+        quote_options = {}
+        if submit_before is not None:
+            remaining = (submit_before - datetime.now(timezone.utc)).total_seconds()
+            if remaining <= 0:
+                logger.warning("Order deadline expired before quote retrieval; not submitting.")
+                return None
+            quote_options["timeout"] = (min(2, remaining / 2), min(3, remaining / 2))
+        status_data_list = self.bfx_trader.get_derivative_status(symbol=symbol, **quote_options)
 
         if not status_data_list:
             logger.error(f"Could not retrieve derivative status for {symbol}. Aborting order.")
@@ -113,6 +122,9 @@ class Trader:
         logger.info(
             f"Calculated limit price for {symbol}: {limit_price:.5f} (from current: {current_price:.5f} with offset: {limit_offset_percentage * 100:.2f}%)")
 
+        if submit_before is not None and datetime.now(timezone.utc) >= submit_before:
+            logger.warning("Order deadline expired during quote retrieval; not submitting.")
+            return None
         order_result = self.bfx_trader.submit_order(
             symbol=symbol,
             amount=str(amount),

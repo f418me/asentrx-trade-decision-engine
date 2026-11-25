@@ -42,6 +42,29 @@ class CPIJudgments(BaseModel):
     )
 
 
+
+
+class PCEJudgments(BaseModel):
+    is_fresh_release: bool = Field(
+        description="Is this an official BEA Personal Income and Outlays release with newly published monthly PCE price data, not a preview, calendar, GDP report or recap?"
+    )
+    matches_report_month: bool = Field(
+        description="Does the main reporting month explicitly match pre_announcement_expectations.report_month? Prior-month revisions, GDP quarterly PCE and older releases do not match. Missing month means false."
+    )
+    headline_mom: Comparison = Field(
+        description="Compare actual headline PCE month-on-month with expected_headline_pce_mom, for report_month only. Below/above require at least 0.1 percentage point difference; otherwise in_line. Unknown if missing. Use price indexes, not spending growth or quarterly annualized GDP PCE."
+    )
+    headline_yoy: Comparison = Field(
+        description="Compare actual headline PCE year-on-year with expected_headline_pce_yoy, for report_month only. Below/above require at least 0.1 percentage point difference; otherwise in_line. Unknown if missing. Use price indexes, not spending growth or quarterly annualized GDP PCE."
+    )
+    core_mom: Comparison = Field(
+        description="Compare actual core PCE excluding food and energy month-on-month with expected_core_pce_mom, for report_month only. Below/above require at least 0.1 percentage point difference; otherwise in_line. Unknown if missing. Use price indexes, not spending growth or quarterly annualized GDP PCE."
+    )
+    core_yoy: Comparison = Field(
+        description="Compare actual core PCE excluding food and energy year-on-year with expected_core_pce_yoy, for report_month only. Below/above require at least 0.1 percentage point difference; otherwise in_line. Unknown if missing. Use price indexes, not spending growth or quarterly annualized GDP PCE."
+    )
+
+
 class NFPJudgments(BaseModel):
     is_fresh_release: bool = Field(
         description="Is this a newly published US BLS Employment Situation report, not a preview, calendar, commentary or recap?"

@@ -6,6 +6,7 @@ import pytest
 import requests
 
 from app.config import AppConfig
+from app.models import AnalysisAbstention
 from app.utils.slack_notifier import SlackNotifier
 
 pytestmark = pytest.mark.unit
@@ -135,3 +136,52 @@ def test_invalid_config_survives_telemetry_failure(monkeypatch, mocker):
     monkeypatch.setattr(AppConfig, "SLACK_WEBHOOK_URL", "")
     mocker.patch("app.utils.slack_notifier.logfire_warning", side_effect=RuntimeError("offline"))
     assert not SlackNotifier().enabled
+
+
+@pytest.mark.parametrize("source", ["pce", "fed", "cpi", "nfp", "social"])
+@pytest.mark.parametrize("prod", [True, False])
+def test_abstention_alert_contents(notifier, mocker, monkeypatch, source, prod):
+    monkeypatch.setattr(AppConfig, "PROD_EXECUTION", prod)
+    monkeypatch.setattr(AppConfig, "JEV_CONFIDENCE_THRESHOLD", .85)
+    enqueue = mocker.patch.object(notifier, "enqueue_message", return_value=True)
+    result = AnalysisAbstention(source=source,
+        reason="A required answer is below the Jev confidence threshold.",
+        confidence_by_field={"core_yoy": .83, "core_mom": 1, "is_fresh_release": .94})
+    assert notifier.enqueue_abstention(result, content_id="bea-pce-2026-10")
+    body = enqueue.call_args.args[0]
+    assert "NO TRADE" in body and "No order submitted" in body
+    assert source.upper() in body
+    assert ("LIVE" if prod else "DRY RUN") in body
+    assert result.reason in body
+    assert "threshold: 0.85" in body
+    assert "core_yoy: 0.83 (below threshold)" in body
+    assert "core_mom: 1.00" in body
+    assert "Content ID: bea-pce-2026-10" in body
+    assert enqueue.call_args.kwargs == {"content_id": "bea-pce-2026-10"}
+
+
+@pytest.mark.parametrize("fields,expected", [
+    ({}, "unavailable / not evaluated"), ({"core_yoy": None}, "invalid/missing"),
+    ({"core_yoy": float("nan")}, "invalid/missing"),
+    ({"core_yoy": "malformed"}, "invalid/missing")])
+def test_abstention_missing_confidence(notifier, mocker, fields, expected):
+    enqueue = mocker.patch.object(notifier, "enqueue_message", return_value=True)
+    assert notifier.enqueue_abstention(AnalysisAbstention(source="pce", reason="Unknown",
+        confidence_by_field=fields), content_id="test")
+    assert expected in enqueue.call_args.args[0]
+
+
+def test_disabled_abstention_does_not_enqueue(notifier, mocker):
+    notifier.enabled = False
+    enqueue = mocker.patch.object(notifier, "enqueue_message")
+    assert not notifier.enqueue_abstention(AnalysisAbstention(source="fed", reason="Unknown"), content_id="test")
+    enqueue.assert_not_called()
+
+
+@pytest.mark.parametrize("raises", [False, True])
+def test_abstention_enqueue_failure_is_nonfatal(notifier, mocker, raises):
+    enqueue = mocker.patch.object(notifier, "enqueue_message", return_value=False)
+    if raises:
+        enqueue.side_effect = RuntimeError("secret")
+    mocker.patch("app.utils.slack_notifier.logfire_warning", side_effect=RuntimeError("offline"))
+    assert not notifier.enqueue_abstention(AnalysisAbstention(source="pce", reason="Unknown"), content_id="test")

@@ -45,6 +45,7 @@ def test_app_client(mocker):
     mock_social_analyzer.analyze_content = AsyncMock()
 
     mock_trade_manager = MagicMock()
+    mock_slack_notifier = MagicMock()
     
     # Create a mock lifespan manager
     @asynccontextmanager
@@ -55,6 +56,7 @@ def test_app_client(mocker):
         app.state.cpi_decision_analyzer = mock_cpi_analyzer
         app.state.social_media_analyzer = mock_social_analyzer
         app.state.trade_decision_manager = mock_trade_manager
+        app.state.slack_notifier = mock_slack_notifier
         app.state.processed_content_ids = set() # Ensure a clean set for each test
         yield
         # No shutdown logic needed for mocks
@@ -69,7 +71,8 @@ def test_app_client(mocker):
             "nfp_analyzer": mock_nfp_analyzer,
             "cpi_analyzer": mock_cpi_analyzer,
             "social_analyzer": mock_social_analyzer,
-            "trade_manager": mock_trade_manager
+            "trade_manager": mock_trade_manager,
+            "slack_notifier": mock_slack_notifier,
         }
     
     # Clean up by restoring the original lifespan

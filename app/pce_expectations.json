@@ -1,0 +1,10 @@
+{
+  "report_month": "2026-10",
+  "release_at": "2026-11-25T13:30:00Z",
+  "window_seconds": 300,
+  "expected_headline_pce_mom": 0.3,
+  "expected_headline_pce_yoy": 3.8,
+  "expected_core_pce_mom": 0.3,
+  "expected_core_pce_yoy": 3.2,
+  "notes": "Prepared 2026-11-24. BEA schedule: https://www.bea.gov/news/schedule . Core consensus corroboration: https://www.usbank.com/content/dam/usbank/en/documents/pdfs/corporate-and-commercial-banking/econ-weekly-pdf-11-20-26.pdf . Headline working forecast (not independently established consensus) and core: https://continuumeconomics.com/a/7b31577f/preview-due-november-25-us-october-personal-income-and-spending-5-month-high-for-yryr-core-pce-prices . Concurrent Q3 GDP second estimate is not analyzed; conflicting market reactions remain possible."
+}

@@ -107,7 +107,7 @@ class BitfinexTrader:
             logger.error(f"Error submitting order: {e}")
             return None
 
-    def get_derivative_status(self, symbol=None):
+    def get_derivative_status(self, symbol=None, *, timeout=None):
         """
         Fetches the status for a specific derivative symbol.
         https://docs.bitfinex.com/reference/rest-public-derivatives-status
@@ -122,7 +122,7 @@ class BitfinexTrader:
         url = f"{self.PUBLIC_API_BASE_URL}/status/deriv?keys={final_symbol}"
         headers = {"accept": "application/json"}
         try:
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, **({"timeout": timeout} if timeout is not None else {}))
             response.raise_for_status()  # Raise an exception for HTTP errors
             return response.json()
         except requests.exceptions.RequestException as e:

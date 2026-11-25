@@ -1,6 +1,7 @@
 
 from typing import Optional, Literal, Union
 from pydantic import BaseModel, Field
+from pydantic import AwareDatetime
 import uuid
 
 
@@ -11,6 +12,7 @@ class WebMonitorPayload(BaseModel):
     """
     uuid: str = Field(default_factory=lambda: str(uuid.uuid4()))
     type: Literal["web-monitor"] = "web-monitor"
+    source: Optional[Literal["fed", "cpi", "nfp", "pce"]] = None
     url: str
     content_id: Optional[str] = Field(default=None, alias="content-id")
     content: str
@@ -169,9 +171,32 @@ class IrrelevantCPIContent(BaseModel):
 
 
 # --- Union Types for Analysis Results ---
+class PCEExpectation(BaseModel):
+    report_month: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
+    release_at: AwareDatetime
+    window_seconds: int = Field(default=300, gt=0, le=900)
+    expected_headline_pce_mom: float = Field(allow_inf_nan=False)
+    expected_headline_pce_yoy: float = Field(allow_inf_nan=False)
+    expected_core_pce_mom: float = Field(allow_inf_nan=False)
+    expected_core_pce_yoy: float = Field(allow_inf_nan=False)
+    notes: Optional[str] = None
+
+
+class PCEReportImpact(BaseModel):
+    expires_at: AwareDatetime
+    impact_on_bitcoin: Literal["positive", "negative", "neutral"]
+    confidence: float
+    reasoning: str
+    actual_report_summary: str
+
+
+class FailedPCEAnalysis(BaseModel):
+    error_message: str
+
+
 class AnalysisAbstention(BaseModel):
     """An analysis that cannot safely produce a trading signal."""
-    source: Literal["fed", "cpi", "nfp", "social"]
+    source: Literal["fed", "cpi", "nfp", "pce", "social"]
     reason: str
     confidence_by_field: dict = Field(default_factory=dict)
 
@@ -181,4 +206,4 @@ CPIAnalysisResult = Union[CPIReportImpact, FailedCPIAnalysis, IrrelevantCPIConte
 SocialMediaAnalysisResult = Union[SocialMediaMarketSignal, FailedSocialMediaAnalysis, IrrelevantSocialMediaContent]
 
 # A general type for any possible analysis outcome
-AnyAnalysisResult = Union[FEDAnalysisResult, NFPAnalysisResult, CPIAnalysisResult, SocialMediaAnalysisResult, AnalysisAbstention]
+AnyAnalysisResult = Union[FEDAnalysisResult, NFPAnalysisResult, CPIAnalysisResult, PCEReportImpact, FailedPCEAnalysis, SocialMediaAnalysisResult, AnalysisAbstention]
